@@ -32,7 +32,7 @@ fn card_compare_with_trump() {
     assert_eq!(card1.compare_with_trump(&card2, &BidType::NoTrump), Some(Ordering::Less));
     assert_eq!(card2.compare_with_trump(&card1, &BidType::NoTrump), Some(Ordering::Greater));
 
-    // 2S > 4H, 4H > 2S - No Trump
+    // No Trump - incomparable
     // 2S > 4H, 4H < 2S - Trump Spades
     // 2S < 4H, 4H > 2S - Trump Hearts
     assert_eq!(card1.compare_with_trump(&card3, &BidType::NoTrump), None);

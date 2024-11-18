@@ -9,6 +9,8 @@ fn suit_order() {
 
     assert!(suit_clubs < suit_diamonds);
     assert!(suit_diamonds > suit_clubs);
+    assert!(suit_diamonds < suit_hearts);
+    assert!(suit_hearts > suit_diamonds);
     assert!(suit_hearts < suit_spades);
     assert!(suit_spades > suit_hearts);    
 }
