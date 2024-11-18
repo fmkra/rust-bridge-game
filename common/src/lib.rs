@@ -1,7 +1,6 @@
 use core::cmp::Ordering;
 
-#[repr(u8)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Rank {
     Two = 2,
     Three = 3,
@@ -43,7 +42,7 @@ impl Rank {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -51,15 +50,17 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
-    NoTrump,
     Trump(Suit),
+    NoTrump,
 }
 
+// It is guaranteed that number \in [1 ; 7]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Bid {
-    number: u8,
-    typ: BidType,
+    pub number: u8,
+    pub typ: BidType,
 }
 
 impl Bid {
@@ -72,10 +73,25 @@ impl Bid {
     }
 }
 
-#[derive(PartialEq)]
+impl Ord for Bid {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.number.cmp(&other.number) {
+            Ordering::Equal => self.typ.cmp(&other.typ),
+            other => other,
+        }
+    }
+}
+
+impl PartialOrd for Bid {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
 pub struct Card {
-    rank: Rank,
-    suit: Suit,
+    pub rank: Rank,
+    pub suit: Suit,
 }
 
 impl Card {
@@ -98,17 +114,19 @@ impl Card {
     pub fn compare_with_trump(
         &self,
         other: &Card,
-        bid_type: BidType
-    ) -> Option<std::cmp::Ordering> {
+        bid_type: &BidType
+    ) -> Option<Ordering> {
         match bid_type {
-            BidType::NoTrump => self.rank.partial_cmp(&other.rank),
+            BidType::NoTrump => {
+                self.partial_cmp(&other)
+            },
             BidType::Trump(trump_suit) => {
-                if self.suit == trump_suit && other.suit != trump_suit {
-                    Some(std::cmp::Ordering::Greater)
-                } else if self.suit != trump_suit && other.suit == trump_suit {
-                    Some(std::cmp::Ordering::Less)
+                if self.suit == *trump_suit && other.suit != *trump_suit {
+                    Some(Ordering::Greater)
+                } else if self.suit != *trump_suit && other.suit == *trump_suit {
+                    Some(Ordering::Less)
                 } else {
-                    self.rank.partial_cmp(&other.rank)
+                    self.partial_cmp(&other)
                 }
             }
         }
@@ -117,15 +135,4 @@ impl Card {
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }
