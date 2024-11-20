@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Rank {
     Two = 2,
     Three = 3,
@@ -42,7 +42,7 @@ impl Rank {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -88,7 +88,7 @@ impl PartialOrd for Bid {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,
@@ -98,19 +98,7 @@ impl Card {
     pub fn new(rank: Rank, suit: Suit) -> Card {
         Card { rank, suit }
     }
-}
 
-impl PartialOrd for Card {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.suit != other.suit {
-            None
-        } else {
-            self.rank.partial_cmp(&other.rank)
-        }
-    }
-}
-
-impl Card {
     pub fn compare_with_trump(
         &self,
         other: &Card,
@@ -130,6 +118,52 @@ impl Card {
                 }
             }
         }
+    }
+}
+
+impl PartialOrd for Card {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.suit != other.suit {
+            None
+        } else {
+            self.rank.partial_cmp(&other.rank)
+        }
+    }
+}
+
+pub struct Game {
+    pub current_bid: Bid,
+    pub current_trick: Vec<Card>
+}
+
+impl Game {
+    pub fn new(bid: Bid) -> Game {
+        Game {
+            current_bid: bid,
+            current_trick: Vec::new(),
+        }
+    }
+
+    pub fn add_card(&mut self, c1: Card) {
+        self.current_trick.push(c1);
+    }
+
+    pub fn trick_max(&self) -> Option<&Card>{
+        let mut cur_max = None;
+        for el in &self.current_trick {
+            println!("Before: {:?}", cur_max);
+            cur_max = match cur_max {
+                None => Some(el),
+                Some(card) => {
+                    match card.compare_with_trump(el, &self.current_bid.typ) {
+                        Some(Ordering::Less) => Some(el),
+                        _ => Some(card),
+                    }
+                }
+            };
+            println!("After: {:?}", cur_max);
+        }
+        return cur_max;
     }
 }
 
