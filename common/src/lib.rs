@@ -149,21 +149,12 @@ impl Game {
     }
 
     pub fn trick_max(&self) -> Option<&Card>{
-        let mut cur_max = None;
-        for el in &self.current_trick {
-            println!("Before: {:?}", cur_max);
-            cur_max = match cur_max {
-                None => Some(el),
-                Some(card) => {
-                    match card.compare_with_trump(el, &self.current_bid.typ) {
-                        Some(Ordering::Less) => Some(el),
-                        _ => Some(card),
-                    }
-                }
-            };
-            println!("After: {:?}", cur_max);
-        }
-        return cur_max;
+        self.current_trick
+            .iter()
+            .max_by(|&cur, &card| {
+                cur.compare_with_trump(card, &self.current_bid.typ)
+                    .unwrap_or(std::cmp::Ordering::Greater)
+            })
     }
 }
 
