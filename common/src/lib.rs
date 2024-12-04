@@ -1,4 +1,5 @@
 use core::cmp::Ordering;
+use rand::prelude::SliceRandom;
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Rank {
@@ -131,7 +132,14 @@ impl PartialOrd for Card {
     }
 }
 
+pub enum GameState {
+    WaitingForPlayers,
+    Bidding,
+    Tricking,
+}
+
 pub struct Game {
+    pub state: GameState,
     pub current_bid: Bid,
     pub current_trick: Vec<Card>
 }
@@ -139,9 +147,34 @@ pub struct Game {
 impl Game {
     pub fn new(bid: Bid) -> Game {
         Game {
+            state: GameState::WaitingForPlayers,
             current_bid: bid,
             current_trick: Vec::new(),
         }
+    }
+
+    pub fn deal_cards(&self) -> [Vec<Card>; 4] {
+        let mut deck: Vec<Card> = (2..=14)
+            .filter_map(Rank::from_u8)
+            .flat_map(|rank| {
+                [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+                    .iter()
+                    .map(move |&suit| Card::new(rank, suit))
+            })
+            .collect();
+
+        let mut rng = rand::thread_rng();
+        deck.shuffle(&mut rng);
+
+        let hands: [Vec<Card>; 4] = deck
+            .chunks(13)
+            .take(4)
+            .map(|chunk| chunk.to_vec())
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap_or_else(|_| panic!("Failed to split the deck into 4 hands"));
+
+        hands
     }
 
     pub fn add_card(&mut self, c1: Card) {

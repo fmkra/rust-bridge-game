@@ -6,7 +6,7 @@ fn game_trick_max() {
         Bid::new(
             4, 
             BidType::Trump(Suit::Spades)
-        ).expect("Bid of number 4 and Spades trump is valid")
+        ).expect("Failed to create the bid")
     );
 
     game.add_card(Card::new(Rank::Three, Suit::Spades));
@@ -22,7 +22,7 @@ fn game_trick_max() {
         Bid::new(
             6,
             BidType::NoTrump
-        ).expect("Bid of number 6 and no trump is valid")
+        ).expect("Failed to create the bid")
     );
 
     game2.add_card(Card::new(Rank::Two, Suit::Diamonds));
@@ -36,8 +36,36 @@ fn game_trick_max() {
         Bid::new(
             3,
             BidType::Trump(Suit::Hearts)
-        ).expect("Bid of number 6 and herat trump is valid")
+        ).expect("Failed to create the bid")
     );
 
     assert_eq!(game3.trick_max(), None);
+}
+
+#[test]
+fn game_deal_cards() {
+    let game = Game::new(
+        Bid::new(
+            4, 
+            BidType::Trump(Suit::Spades)
+        ).expect("Failed to create the bid")
+    );
+
+    let hands = game.deal_cards();
+    let mut cards : Vec<_> = hands.into_iter().flatten().collect();
+    cards.sort_by(|a, b| {
+        if a.suit == b.suit {
+            return a.rank.cmp(&b.rank);
+        }
+
+        return a.suit.cmp(&b.suit)
+    });
+
+    let mut cards_iter = cards.iter();
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]{
+        for rank in 2..15 {
+            let card = Card::new(Rank::from_u8(rank).unwrap(), suit);
+            assert_eq!(card, *cards_iter.next().unwrap());
+        }
+    }
 }
