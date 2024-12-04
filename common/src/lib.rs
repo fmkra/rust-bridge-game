@@ -38,8 +38,8 @@ impl Rank {
         }
     }
 
-    pub fn to_u8(self) -> u8 {
-        self as u8
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
     }
 }
 
@@ -136,6 +136,34 @@ pub enum GameState {
     WaitingForPlayers,
     Bidding,
     Tricking,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum Player {
+    North = 0,
+    East = 1,
+    South = 2,
+    West = 3,
+}
+
+impl Player {
+    pub fn next(&self) -> Player {
+        Player::from_u8((self.to_u8() + 1) % 4).unwrap()
+    }
+
+    pub fn from_u8(value: u8) -> Option<Player> {
+        match value {
+            0 => Some(Player::North),
+            1 => Some(Player::East),
+            2 => Some(Player::South),
+            3 => Some(Player::West),
+            _ => None,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
 }
 
 pub struct Game {
