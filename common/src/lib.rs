@@ -67,8 +67,7 @@ impl Bid {
     pub fn new(number: u8, typ: BidType) -> Option<Bid> {
         if number >= 1 && number <= 7 {
             Some(Bid::Play(number, typ))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -77,16 +76,10 @@ impl Bid {
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Bid::Pass, Bid::Pass) => {
-                Ordering::Equal
-            }
-            (Bid::Pass, Bid::Play(_, _)) => {
-                Ordering::Less
-            }
-            (Bid::Play(_, _), Bid::Pass) => {
-                Ordering::Greater
-            }
-            (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) =>{
+            (Bid::Pass, Bid::Pass) => Ordering::Equal,
+            (Bid::Pass, Bid::Play(_, _)) => Ordering::Less,
+            (Bid::Play(_, _), Bid::Pass) => Ordering::Greater,
+            (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
                 match self_number.cmp(&other_number) {
                     Ordering::Equal => self_type.cmp(&other_type),
                     other => other,
@@ -113,31 +106,21 @@ impl Card {
         Card { rank, suit }
     }
 
-    pub fn compare_with_trump(
-        &self,
-        other: &Card,
-        bid: &Bid
-    ) -> Option<Ordering> {
+    pub fn compare_with_trump(&self, other: &Card, bid: &Bid) -> Option<Ordering> {
         match bid {
-            Bid::Pass => {
-                None
-            },
-            Bid::Play(_, bid_type) => {
-                match bid_type {
-                    BidType::NoTrump => {
+            Bid::Pass => None,
+            Bid::Play(_, bid_type) => match bid_type {
+                BidType::NoTrump => self.partial_cmp(&other),
+                BidType::Trump(trump_suit) => {
+                    if self.suit == *trump_suit && other.suit != *trump_suit {
+                        Some(Ordering::Greater)
+                    } else if self.suit != *trump_suit && other.suit == *trump_suit {
+                        Some(Ordering::Less)
+                    } else {
                         self.partial_cmp(&other)
-                    },
-                    BidType::Trump(trump_suit) => {
-                        if self.suit == *trump_suit && other.suit != *trump_suit {
-                            Some(Ordering::Greater)
-                        } else if self.suit != *trump_suit && other.suit == *trump_suit {
-                            Some(Ordering::Less)
-                        } else {
-                            self.partial_cmp(&other)
-                        }
-                    },
+                    }
                 }
-            }
+            },
         }
     }
 }
@@ -152,10 +135,12 @@ impl PartialOrd for Card {
     }
 }
 
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum GameState {
     WaitingForPlayers,
     Bidding,
     Tricking,
+    Finished,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -186,12 +171,13 @@ impl Player {
     }
 }
 
+#[derive(Debug)]
 pub struct Game {
     pub state: GameState,
     pub max_bid: Bid,
     pub max_bidder: Player,
     pub current_player: Player,
-    pub current_trick: Vec<Card>
+    pub current_trick: Vec<Card>,
 }
 
 impl Game {
@@ -202,6 +188,41 @@ impl Game {
             max_bid: Bid::Pass,
             max_bidder: Player::North,
             current_trick: Vec::new(),
+        }
+    }
+
+    pub fn place_bid(&mut self, player: Player, bid: Bid) -> Result<GameState, &'static str> {
+        if self.state != GameState::Bidding {
+            return Err("Game is not in bidding state");
+        }
+        if self.current_player != player {
+            return Err("Player bidding out of his turn");
+        }
+        match bid {
+            Bid::Pass => {
+                self.current_player = self.current_player.next();
+                if self.current_player == self.max_bidder {
+                    match self.max_bid {
+                        Bid::Pass => {
+                            self.state = GameState::Finished;
+                        }
+                        _ => {
+                            self.state = GameState::Tricking;
+                        }
+                    }
+                }
+                Ok(self.state)
+            }
+            Bid::Play(_, _) => {
+                if bid > self.max_bid {
+                    self.max_bid = bid;
+                    self.max_bidder = player;
+                    self.current_player = self.current_player.next();
+                    Ok(self.state)
+                } else {
+                    Err("Bid is not greater than current max bid")
+                }
+            }
         }
     }
 
@@ -235,13 +256,11 @@ impl Game {
 
     // This function is to be called only after the bidding phase of the game
     // If not, the unwrap() may cause a panic!
-    pub fn trick_max(&self) -> Option<&Card>{
-        self.current_trick
-            .iter()
-            .max_by(|&cur, &card| {
-                cur.compare_with_trump(card, &self.max_bid)
-                    .unwrap_or(std::cmp::Ordering::Greater)
-            })
+    pub fn trick_max(&self) -> Option<&Card> {
+        self.current_trick.iter().max_by(|&cur, &card| {
+            cur.compare_with_trump(card, &self.max_bid)
+                .unwrap_or(std::cmp::Ordering::Greater)
+        })
     }
 }
 
