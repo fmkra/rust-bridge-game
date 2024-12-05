@@ -53,32 +53,45 @@ pub enum Suit {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
-    Pass,
     Trump(Suit),
     NoTrump,
 }
 
-// It is guaranteed that number \in [1 ; 7], or 0 for BidType::Pass
 #[derive(Debug, PartialEq, Eq)]
-pub struct Bid {
-    pub number: u8,
-    pub typ: BidType,
+pub enum Bid {
+    Pass,
+    Play(u8, BidType),
 }
 
 impl Bid {
-    pub fn new(number: u8, typ: BidType) -> Bid {
-        if number >= 1 && number <= 7 && typ != BidType::Pass {
-            return Bid { number, typ };
+    pub fn new(number: u8, typ: BidType) -> Option<Bid> {
+        if number >= 1 && number <= 7 {
+            Some(Bid::Play(number, typ))
         }
-        return Bid {number: 0, typ: BidType::Pass};
+        else {
+            None
+        }
     }
 }
 
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.number.cmp(&other.number) {
-            Ordering::Equal => self.typ.cmp(&other.typ),
-            other => other,
+        match (self, other) {
+            (Bid::Pass, Bid::Pass) => {
+                Ordering::Equal
+            }
+            (Bid::Pass, Bid::Play(_, _)) => {
+                Ordering::Less
+            }
+            (Bid::Play(_, _), Bid::Pass) => {
+                Ordering::Greater
+            }
+            (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) =>{
+                match self_number.cmp(&other_number) {
+                    Ordering::Equal => self_type.cmp(&other_type),
+                    other => other,
+                }
+            }
         }
     }
 }
@@ -103,22 +116,26 @@ impl Card {
     pub fn compare_with_trump(
         &self,
         other: &Card,
-        bid_type: &BidType
+        bid: &Bid
     ) -> Option<Ordering> {
-        match bid_type {
-            BidType::NoTrump => {
-                self.partial_cmp(&other)
+        match bid {
+            Bid::Pass => {
+                None
             },
-            BidType::Pass => {
-                self.partial_cmp(&other)
-            }
-            BidType::Trump(trump_suit) => {
-                if self.suit == *trump_suit && other.suit != *trump_suit {
-                    Some(Ordering::Greater)
-                } else if self.suit != *trump_suit && other.suit == *trump_suit {
-                    Some(Ordering::Less)
-                } else {
-                    self.partial_cmp(&other)
+            Bid::Play(_, bid_type) => {
+                match bid_type {
+                    BidType::NoTrump => {
+                        self.partial_cmp(&other)
+                    },
+                    BidType::Trump(trump_suit) => {
+                        if self.suit == *trump_suit && other.suit != *trump_suit {
+                            Some(Ordering::Greater)
+                        } else if self.suit != *trump_suit && other.suit == *trump_suit {
+                            Some(Ordering::Less)
+                        } else {
+                            self.partial_cmp(&other)
+                        }
+                    },
                 }
             }
         }
@@ -182,7 +199,7 @@ impl Game {
         Game {
             state: GameState::WaitingForPlayers,
             current_player: Player::North,
-            max_bid: Bid::new(0, BidType::Pass),
+            max_bid: Bid::Pass,
             max_bidder: Player::North,
             current_trick: Vec::new(),
         }
@@ -222,7 +239,7 @@ impl Game {
         self.current_trick
             .iter()
             .max_by(|&cur, &card| {
-                cur.compare_with_trump(card, &self.max_bid.typ)
+                cur.compare_with_trump(card, &self.max_bid)
                     .unwrap_or(std::cmp::Ordering::Greater)
             })
     }
