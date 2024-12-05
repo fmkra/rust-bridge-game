@@ -51,13 +51,14 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
+    Pass,
     Trump(Suit),
     NoTrump,
 }
 
-// It is guaranteed that number \in [1 ; 7]
+// It is guaranteed that number \in [1 ; 7], or 0 for BidType::Pass
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bid {
     pub number: u8,
@@ -65,12 +66,11 @@ pub struct Bid {
 }
 
 impl Bid {
-    pub fn new(number: u8, typ: BidType) -> Option<Bid> {
-        if number >= 1 && number <= 7 {
-            Some(Bid { number, typ })
-        } else {
-            None
+    pub fn new(number: u8, typ: BidType) -> Bid {
+        if number >= 1 && number <= 7 && typ != BidType::Pass {
+            return Bid { number, typ };
         }
+        return Bid {number: 0, typ: BidType::Pass};
     }
 }
 
@@ -109,6 +109,9 @@ impl Card {
             BidType::NoTrump => {
                 self.partial_cmp(&other)
             },
+            BidType::Pass => {
+                self.partial_cmp(&other)
+            }
             BidType::Trump(trump_suit) => {
                 if self.suit == *trump_suit && other.suit != *trump_suit {
                     Some(Ordering::Greater)
@@ -168,15 +171,19 @@ impl Player {
 
 pub struct Game {
     pub state: GameState,
-    pub current_bid: Bid,
+    pub max_bid: Bid,
+    pub max_bidder: Player,
+    pub current_player: Player,
     pub current_trick: Vec<Card>
 }
 
 impl Game {
-    pub fn new(bid: Bid) -> Game {
+    pub fn new() -> Game {
         Game {
             state: GameState::WaitingForPlayers,
-            current_bid: bid,
+            current_player: Player::North,
+            max_bid: Bid::new(0, BidType::Pass),
+            max_bidder: Player::North,
             current_trick: Vec::new(),
         }
     }
@@ -209,11 +216,13 @@ impl Game {
         self.current_trick.push(c1);
     }
 
+    // This function is to be called only after the bidding phase of the game
+    // If not, the unwrap() may cause a panic!
     pub fn trick_max(&self) -> Option<&Card>{
         self.current_trick
             .iter()
             .max_by(|&cur, &card| {
-                cur.compare_with_trump(card, &self.current_bid.typ)
+                cur.compare_with_trump(card, &self.max_bid.typ)
                     .unwrap_or(std::cmp::Ordering::Greater)
             })
     }

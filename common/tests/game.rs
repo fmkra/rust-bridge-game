@@ -2,28 +2,20 @@ use common::*;
 
 #[test]
 fn game_trick_max() {
-    let mut game = Game::new(
-        Bid::new(
-            4, 
-            BidType::Trump(Suit::Spades)
-        ).expect("Failed to create the bid")
-    );
+    let mut game1 = Game::new();
+    game1.max_bid = Bid::new(2, BidType::Trump(Suit::Spades));
 
-    game.add_card(Card::new(Rank::Three, Suit::Spades));
-    game.add_card(Card::new(Rank::Five, Suit::Diamonds));
-    game.add_card(Card::new(Rank::King, Suit::Clubs));
-    game.add_card(Card::new(Rank::Queen, Suit::Spades));
+    game1.add_card(Card::new(Rank::Three, Suit::Spades));
+    game1.add_card(Card::new(Rank::Five, Suit::Diamonds));
+    game1.add_card(Card::new(Rank::King, Suit::Clubs));
+    game1.add_card(Card::new(Rank::Queen, Suit::Spades));
 
-    assert_eq!(game.trick_max(), Some(&Card::new(Rank::Queen, Suit::Spades)));
+    assert_eq!(game1.trick_max(), Some(&Card::new(Rank::Queen, Suit::Spades)));
 
     // -------------------------------------
 
-    let mut game2 = Game::new(
-        Bid::new(
-            6,
-            BidType::NoTrump
-        ).expect("Failed to create the bid")
-    );
+    let mut game2 = Game::new();
+    game2.max_bid = Bid::new(6, BidType::NoTrump);
 
     game2.add_card(Card::new(Rank::Two, Suit::Diamonds));
     game2.add_card(Card::new(Rank::Five, Suit::Hearts));
@@ -32,24 +24,17 @@ fn game_trick_max() {
 
     assert_eq!(game2.trick_max(), Some(&Card::new(Rank::Two, Suit::Diamonds)));
 
-    let game3 = Game::new(
-        Bid::new(
-            3,
-            BidType::Trump(Suit::Hearts)
-        ).expect("Failed to create the bid")
-    );
+    // ------------------------------------- 
+ 
+    let mut game3 = Game::new();
+    game3.max_bid = Bid::new(2, BidType::NoTrump);
 
     assert_eq!(game3.trick_max(), None);
 }
 
 #[test]
 fn game_deal_cards() {
-    let game = Game::new(
-        Bid::new(
-            4, 
-            BidType::Trump(Suit::Spades)
-        ).expect("Failed to create the bid")
-    );
+    let game = Game::new();
 
     let hands = game.deal_cards();
     let mut cards : Vec<_> = hands.into_iter().flatten().collect();
