@@ -1,20 +1,11 @@
-use std::{
-    borrow::BorrowMut,
-    cell::RefCell,
-    io::{Read, Write},
-    sync::Arc,
-    time::Duration,
-};
+use std::{io::Write, sync::Arc, time::Duration};
 
 use futures_util::FutureExt;
-use rust_socketio::{
-    asynchronous::{Client, ClientBuilder},
-    Payload,
-};
+use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, to_string};
+use serde_json::to_string;
 use tokio::{
-    sync::{mpsc, Mutex, Notify},
+    sync::{mpsc, Notify},
     time::sleep,
 };
 
@@ -55,38 +46,16 @@ async fn main() {
     let register_room_notifier = Arc::new(Notify::new());
     let register_room_notifier_clone = register_room_notifier.clone();
 
+    let (select_username_tx, mut select_username_rx) = mpsc::channel(1);
+
     let (select_place_tx, mut select_place_rx) = mpsc::channel(1);
 
     let (room_ids_tx, mut room_ids_rx) = mpsc::channel(1);
 
-    // let cb = move |payload, client| {
-    //     let notify_clone = notify.clone();
-    //     async move {
-    //         println!("payload {:?}", payload);
-    //         // println!("client {:?}", client.);
-    //         notify_clone.notify_one();
-    //     }
-    //     .boxed()
-    // };
-
-    // get a socket that is connected to the admin namespace
     let socket = ClientBuilder::new("http://localhost:3000/")
         .namespace("/")
-        // .on("list_rooms", cb)
-        // .on("room_registered", move |payload, client| {
-        //     async move {
-        //         println!("room_registered {:?}", payload);
-        //     }
-        //     .boxed()
-        // })
-        // .on_any(move |event, payload, _| {
-        //     async move {
-        //         println!("Event: {:?}, Payload: {:?}", event, payload);
-        //     }
-        //     .boxed()
-        // })
         .on(LOGIN_RESPONSE, move |payload, s| {
-            // let notify = notify_clone.clone();
+            let select_username_tx = select_username_tx.clone();
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -94,10 +63,22 @@ async fn main() {
                     }
                     _ => return,
                 };
-                println!("Login response {:?}", msg);
-                s.emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
-                    .await
-                    .unwrap();
+                match msg {
+                    LoginResponse::Ok => {
+                        s.emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
+                            .await
+                            .unwrap();
+                        select_username_tx.send(true).await.unwrap();
+                    }
+                    LoginResponse::UsernameAlreadyExists => {
+                        println!("Username already exists");
+                        select_username_tx.send(false).await.unwrap();
+                    }
+                    LoginResponse::UserAlreadyLoggedIn => {
+                        println!("User is already logged in");
+                        select_username_tx.send(false).await.unwrap();
+                    }
+                }
             }
             .boxed()
         })
@@ -116,21 +97,14 @@ async fn main() {
                     _ => vec![],
                 };
 
-                println!("Create new room or join existing:");
-                println!("[0] Create new room");
-
-                for (i, room) in rooms.iter().enumerate() {
-                    println!("[{}] Join \"{}\"", i + 1, room);
-                }
-
                 room_ids_tx.send(rooms).await.unwrap();
             }
             .boxed()
         })
-        .on(REGISTER_ROOM_RESPONSE, move |payload, _| {
+        .on(REGISTER_ROOM_RESPONSE, move |_, _| {
             let notifier = register_room_notifier_clone.clone();
             async move {
-                println!("Room registered {:?}", payload);
+                // println!("Room registered {:?}", payload);
                 notifier.notify_one();
             }
             .boxed()
@@ -161,7 +135,28 @@ async fn main() {
                     }
                     _ => return,
                 };
-                println!("List places response {:?}", msg);
+                match msg {
+                    ListPlacesResponse::Ok(msg) => {
+                        let positions = msg
+                            .into_iter()
+                            .map(|user| {
+                                if let Some(user) = user {
+                                    user.get_username().to_string()
+                                } else {
+                                    "-".to_string()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" | ");
+                        println!("Current positions are | {} |", positions);
+                    }
+                    ListPlacesResponse::NotInRoom => {
+                        println!("[INFO] You are not in a room");
+                    }
+                    ListPlacesResponse::Unauthenticated => {
+                        println!("[INFO] You are not authenticated");
+                    }
+                }
             }
             .boxed()
         })
@@ -230,23 +225,6 @@ async fn main() {
             }
             .boxed()
         })
-        // .on("user_selected_position", move |payload, _| {
-        //     async move {
-        //         let msg = match payload {
-        //             Payload::Text(text) => {
-        //                 serde_json::from_value::<UserSelectedPositionMessage>(text[0].clone())
-        //                     .unwrap()
-        //             }
-        //             _ => return,
-        //         };
-        //         println!(
-        //             "User {} selected position {:?}",
-        //             msg.user.get_username(),
-        //             msg.position
-        //         );
-        //     }
-        //     .boxed()
-        // })
         .on(GAME_STARTED_NOTIFICATION, move |payload, _| {
             let notifier = game_start_notifier_clone.clone();
             async move {
@@ -268,138 +246,160 @@ async fn main() {
         .await
         .expect("Connection failed");
 
-    let mut username = String::new();
+    loop {
+        let mut username = String::new();
 
-    print!("Enter username: ");
-    std::io::stdout().flush().unwrap();
-    std::io::stdin().read_line(&mut username).unwrap();
-    // TODO: filter by regex
+        print!("Enter username: ");
+        std::io::stdout().flush().unwrap();
+        std::io::stdin().read_line(&mut username).unwrap();
+        // TODO: filter with regex
 
-    let msg = LoginMessage {
-        user: User::new(username.trim()),
-    };
-
-    println!("Sending login");
-    socket
-        .emit(LOGIN_MESSAGE, to_string(&msg).unwrap())
-        .await
-        .unwrap();
-
-    'outer: loop {
-        let room_ids = room_ids_rx.recv().await.unwrap();
-
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        let selection = input.trim().parse::<usize>().unwrap();
-
-        let room_id = if selection == 0 {
-            println!("Creating new room");
-
-            let mut room_name = String::new();
-            print!("Enter room name: ");
-            std::io::stdout().flush().unwrap();
-            std::io::stdin().read_line(&mut room_name).unwrap();
-            let room_name = room_name.trim();
-
-            let msg = RegisterRoomMessage {
-                room_info: RoomInfo {
-                    id: RoomId::new(room_name),
-                    visibility: Visibility::Public,
-                },
-            };
-
-            socket
-                .emit(REGISTER_ROOM_MESSAGE, to_string(&msg).unwrap())
-                .await
-                .unwrap();
-
-            register_room_notifier.notified().await;
-
-            room_name.to_string()
-        } else {
-            room_ids[selection - 1].clone()
+        let msg = LoginMessage {
+            user: User::new(username.trim()),
         };
 
-        let msg = JoinRoomMessage {
-            room_id: RoomId::new(&room_id),
-        };
-
-        println!("Sending join_room {}", room_id);
         socket
-            .emit(JOIN_ROOM_MESSAGE, to_string(&msg).unwrap())
+            .emit(LOGIN_MESSAGE, to_string(&msg).unwrap())
             .await
             .unwrap();
 
-        'inner: loop {
-            print!("Enter position [0-3] (any other to leave room): ");
-            std::io::stdout().flush().unwrap();
-            let mut position_string = String::new();
-            std::io::stdin().read_line(&mut position_string).unwrap();
-            let position = position_string.trim().parse::<i32>().unwrap();
-
-            if position >= 0 && position < 4 {
-                println!("Sending select_place");
-                socket
-                    .emit(
-                        SELECT_PLACE_MESSAGE,
-                        to_string(&SelectPlaceMessage {
-                            position: Some(position as usize),
-                        })
-                        .unwrap(),
-                    )
-                    .await
-                    .unwrap();
-
-                if select_place_rx.recv().await.unwrap() {
-                    break 'outer;
-                } else {
-                    println!("Position already taken");
-                    socket
-                        .emit(
-                            LIST_PLACES_MESSAGE,
-                            to_string(&ListPlacesMessage {}).unwrap(),
-                        )
-                        .await
-                        .unwrap();
-                }
-            } else {
-                println!("Sending leave room");
-                socket
-                    .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
-                    .await
-                    .unwrap();
-                break 'inner;
-            }
+        if select_username_rx.recv().await.unwrap() {
+            break;
         }
     }
 
-    // std::io::stdin().read_to_string(&mut String::new()).unwrap();
-    game_start_notifier.notified().await;
+    'lobby_loop: loop {
+        let room_ids = room_ids_rx.recv().await.unwrap();
 
-    // println!("Sending register_room");
-    // socket
-    //     .emit(
-    //         "register_room",
-    //         to_string(&RegisterRoomMessage {
-    //             room_info: RoomInfo {
-    //                 id: RoomId::new("room1"),
-    //                 visibility: Visibility::Public,
-    //             },
-    //         })
-    //         .unwrap(),
-    //     )
-    //     .await
-    //     .unwrap();
+        'room_selection: loop {
+            println!("Create new room or join existing:");
+            println!("[e] Exit");
+            println!("[r] Refresh");
+            println!("[0] Create new room");
 
-    // let msg = Ping {};
+            for (i, room) in room_ids.iter().enumerate() {
+                println!("[{}] Join \"{}\"", i + 1, room);
+            }
 
-    // socket.emit("msg", to_string(&msg).unwrap()).await.unwrap();
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            match input.trim() {
+                "e" => {
+                    break 'lobby_loop;
+                }
+                "r" => {
+                    socket
+                        .emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
+                        .await
+                        .unwrap();
+                    continue 'lobby_loop;
+                }
+                _ => {}
+            }
+            let Ok(selection) = input.trim().parse::<usize>() else {
+                println!("Invalid selection");
+                continue;
+            };
 
-    // notify.notified().await;
+            let room_id = if selection == 0 {
+                println!("Creating new room");
 
-    println!("Starting game...");
+                let mut room_name = String::new();
+                print!("Enter room name: ");
+                std::io::stdout().flush().unwrap();
+                std::io::stdin().read_line(&mut room_name).unwrap();
+                let room_name = room_name.trim();
 
-    sleep(Duration::from_secs(2)).await;
+                let msg = RegisterRoomMessage {
+                    room_info: RoomInfo {
+                        id: RoomId::new(room_name),
+                        visibility: Visibility::Public,
+                    },
+                };
+
+                socket
+                    .emit(REGISTER_ROOM_MESSAGE, to_string(&msg).unwrap())
+                    .await
+                    .unwrap();
+
+                register_room_notifier.notified().await;
+
+                room_name.to_string()
+            } else if selection - 1 < room_ids.len() {
+                room_ids[selection - 1].clone()
+            } else {
+                println!("Invalid selection");
+                continue;
+            };
+
+            let msg = JoinRoomMessage {
+                room_id: RoomId::new(&room_id),
+            };
+
+            println!("Sending join_room {}", room_id);
+            socket
+                .emit(JOIN_ROOM_MESSAGE, to_string(&msg).unwrap())
+                .await
+                .unwrap();
+
+            loop {
+                print!("Enter position [0-3] Spectator [4] (any other to leave room): ");
+                std::io::stdout().flush().unwrap();
+                let mut position_string = String::new();
+                std::io::stdin().read_line(&mut position_string).unwrap();
+                let position = position_string.trim().parse::<i32>().unwrap();
+
+                if position >= 0 && position < 4 {
+                    println!("Sending select_place");
+                    socket
+                        .emit(
+                            SELECT_PLACE_MESSAGE,
+                            to_string(&SelectPlaceMessage {
+                                position: Some(position as usize),
+                            })
+                            .unwrap(),
+                        )
+                        .await
+                        .unwrap();
+
+                    if select_place_rx.recv().await.unwrap() {
+                        break 'room_selection;
+                    } else {
+                        println!("Position already taken");
+                        socket
+                            .emit(
+                                LIST_PLACES_MESSAGE,
+                                to_string(&ListPlacesMessage {}).unwrap(),
+                            )
+                            .await
+                            .unwrap();
+                    }
+                } else if position == 4 {
+                    println!("Selected spectator");
+                    break 'room_selection;
+                } else {
+                    println!("Sending leave room");
+                    socket
+                        .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+                        .await
+                        .unwrap();
+
+                    continue 'lobby_loop;
+                }
+            }
+        }
+
+        game_start_notifier.notified().await;
+
+        println!("Starting game...");
+
+        sleep(Duration::from_secs(2)).await;
+
+        socket
+            .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+            .await
+            .unwrap();
+    }
 
     socket.disconnect().await.expect("Disconnect failed");
 }

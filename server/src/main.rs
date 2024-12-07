@@ -57,6 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             LOGIN_MESSAGE,
             |s: SocketRef, Data::<LoginMessage>(data), state: State<ServerState>| async move {
+                // TODO: regex filter username string
+
                 if s.extensions.get::<ClientData>().is_some() {
                     s.emit(LOGIN_RESPONSE, &LoginResponse::UserAlreadyLoggedIn).unwrap();
                 }
@@ -242,8 +244,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                // TODO: None position formatting in info!
-                info!("User \"{}\" selected place {:?} in room \"{}\"", client_data.user.get_username(), data.position, room_id.as_str());
+                let position_str = match data.position {
+                    Some(pos) => pos.to_string(),
+                    None => "*spectator*".into(),
+                };
+                info!("User \"{}\" selected place {} in room \"{}\"", client_data.user.get_username(), position_str, room_id.as_str());
 
                 s.emit(SELECT_PLACE_RESPONSE, &SelectPlaceResponse::Ok).unwrap();
 
@@ -298,7 +303,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest_service("/", ServeDir::new("dist"))
         .layer(
             ServiceBuilder::new()
-                .layer(CorsLayer::permissive()) // Enable CORS policy
+                .layer(CorsLayer::permissive())
                 .layer(layer),
         );
 

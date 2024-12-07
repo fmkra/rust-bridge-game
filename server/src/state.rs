@@ -1,15 +1,12 @@
 // use futures::stream::{StreamExt, TryStreamExt, };
 use std::{
-    collections::{
-        hash_map::{Entry, OccupiedEntry, VacantEntry},
-        HashMap, HashSet,
-    },
+    collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
 };
 
 use futures;
-use futures::stream::{StreamExt, TryStreamExt};
-use tokio::sync::{Mutex, RwLock};
+use futures::stream::StreamExt;
+use tokio::sync::RwLock;
 
 use common::{
     message::server_response::RegisterRoomResponse,
