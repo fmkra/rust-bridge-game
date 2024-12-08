@@ -6,7 +6,7 @@ use rand::prelude::SliceRandom;
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum GameState {
     WaitingForPlayers,
-    Bidding,
+    Auction,
     Tricking,
     Finished,
 }
@@ -68,13 +68,13 @@ impl Game {
             .try_into()
             .unwrap(); // There's always a way to split 52 cards into 4*13
 
-        self.state = GameState::Bidding;
+        self.state = GameState::Auction;
 
-        Ok(GameState::Bidding)
+        Ok(GameState::Auction)
     }
 
     pub fn place_bid(&mut self, player: &Player, bid: Bid) -> Result<GameState, GameError> {
-        if self.state != GameState::Bidding {
+        if self.state != GameState::Auction {
             return Err(GameError::GameStateMismatch);
         }
         if self.current_player != *player {
@@ -185,7 +185,7 @@ impl Game {
         self.current_player = self.current_player.skip(id);
     }
 
-    // This function is to be called only after the bidding phase of the game
+    // This function is to be called only after the Auction phase of the game
     // and when the trick is not empty. Otherwise, the unwrap() will cause a panic!
     pub fn trick_max(&self) -> &Card {
         self.current_trick

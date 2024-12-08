@@ -28,7 +28,7 @@ fn game_trick_max() {
 #[test]
 fn game_start() {
     let mut game = Game::new();
-    assert_eq!(game.start(), Ok(GameState::Bidding));
+    assert_eq!(game.start(), Ok(GameState::Auction));
 
     let hands = game.player_cards;
     let mut cards: Vec<_> = hands.into_iter().flatten().collect();
@@ -61,42 +61,42 @@ fn game_place_bid() {
         )
     );
 
-    game.state = GameState::Bidding;
+    game.state = GameState::Auction;
 
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::East,
             Bid::new(3, BidType::Trump(Suit::Diamonds)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::South,
             Bid::new(3, BidType::Trump(Suit::Hearts)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::West,
             Bid::new(3, BidType::Trump(Suit::Spades)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(&Player::North, Bid::new(3, BidType::NoTrump).unwrap())
     );
 
-    // Player Bidding out of his turn.
+    // Player Auction out of his turn.
     assert_eq!(
         Err(GameError::PlayerOutOfTurn),
         game.place_bid(&Player::North, Bid::Pass)
@@ -112,11 +112,11 @@ fn game_place_bid() {
     );
 
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(&Player::East, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(&Player::South, Bid::Pass)
     );
     assert_eq!(
@@ -259,50 +259,50 @@ fn game_full_game() {
     }
 
     game.player_cards = [cards_north, cards_east, cards_south, cards_west];
-    game.state = GameState::Bidding;
+    game.state = GameState::Auction;
 
-    // Bidding
+    // Auction
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::North,
             Bid::new(2, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::East,
             Bid::new(2, BidType::Trump(Suit::Diamonds)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::South,
             Bid::new(2, BidType::Trump(Suit::Hearts)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::West,
             Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(
             &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(&Player::East, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Bidding),
+        Ok(GameState::Auction),
         game.place_bid(&Player::South, Bid::Pass)
     );
     assert_eq!(
