@@ -2,7 +2,22 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use common::message::{
-    client_message::{JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE}, server_notification::{GameStartedNotification, JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION}, server_response::{JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse, LoginResponse, RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE},
+    client_message::{
+        JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage, JOIN_ROOM_MESSAGE,
+        LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE,
+        REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+    },
+    server_notification::{
+        GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
+        SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
+        LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+    },
+    server_response::{
+        JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse, LoginResponse,
+        RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE,
+        LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, REGISTER_ROOM_RESPONSE,
+        SELECT_PLACE_RESPONSE,
+    },
 };
 use common::user::User;
 use socketioxide::{
@@ -152,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     user.get_username(),
                     room_id.as_str()
                 );
-                
+
                 let msg = JoinRoomNotification { user };
                 s.to(room_wrapper).emit(JOIN_ROOM_NOTIFICATION, &msg).unwrap();
             },
@@ -169,7 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if generate_response {
                 client_data.room = None;
                 s.extensions.insert(client_data.clone());
-    
+
                 s.emit(LEAVE_ROOM_RESPONSE, &LeaveRoomResponse::Ok).unwrap();
             }
 
