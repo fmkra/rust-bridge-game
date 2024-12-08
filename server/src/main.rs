@@ -1,25 +1,28 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use common::message::{
-    client_message::{
-        JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage, JOIN_ROOM_MESSAGE,
-        LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE,
-        REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
-    },
-    server_notification::{
-        GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
-        SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
-        LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
-    },
-    server_response::{
-        JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse, LoginResponse,
-        RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE,
-        LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, REGISTER_ROOM_RESPONSE,
-        SELECT_PLACE_RESPONSE,
-    },
-};
 use common::user::User;
+use common::{
+    message::{
+        client_message::{
+            JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage,
+            JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE,
+            LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+        },
+        server_notification::{
+            GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
+            SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
+            LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+        },
+        server_response::{
+            JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
+            LoginResponse, RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE,
+            LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE,
+            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
+        },
+    },
+    Player,
+};
 use socketioxide::{
     adapter::Room as SRoom,
     extract::{Data, SocketRef, State},
@@ -260,7 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 let position_str = match data.position {
-                    Some(pos) => pos.to_string(),
+                    Some(pos) => pos.to_u8().to_string(),
                     None => "*spectator*".into(),
                 };
                 info!("User \"{}\" selected place {} in room \"{}\"", client_data.user.get_username(), position_str, room_id.as_str());
@@ -277,7 +280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     info!("Game started in room \"{}\"", room_id.as_str());
 
                     let msg = GameStartedNotification {
-                        start_position: 0, // TODO: change to enum
+                        start_position: Player::North, // TODO: change to enum
                         player_position: player_position,
                     };
 

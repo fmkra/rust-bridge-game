@@ -30,6 +30,7 @@ use common::{
     },
     room::{RoomId, RoomInfo, Visibility},
     user::User,
+    Player,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -355,7 +356,7 @@ async fn main() {
                         .emit(
                             SELECT_PLACE_MESSAGE,
                             to_string(&SelectPlaceMessage {
-                                position: Some(position as usize),
+                                position: Player::from_usize(position as usize),
                             })
                             .unwrap(),
                         )

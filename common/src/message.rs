@@ -7,6 +7,8 @@ use crate::{
 
 /// Messages sent from client to server
 pub mod client_message {
+    use crate::Player;
+
     use super::*;
 
     pub const LOGIN_MESSAGE: &str = "login";
@@ -65,7 +67,7 @@ pub mod client_message {
     /// Server answers with UserSelectedPositionMessage message
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SelectPlaceMessage {
-        pub position: Option<usize>, // TODO: change to enum
+        pub position: Option<Player>,
     }
 }
 
@@ -146,6 +148,8 @@ pub mod server_response {
 }
 
 pub mod server_notification {
+    use crate::Player;
+
     use super::*;
 
     pub const JOIN_ROOM_NOTIFICATION: &str = "join_room_notification";
@@ -169,14 +173,14 @@ pub mod server_notification {
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct SelectPlaceNotification {
         pub user: User,
-        pub position: Option<usize>, // TODO: change to enum
+        pub position: Option<Player>,
     }
 
     pub const GAME_STARTED_NOTIFICATION: &str = "game_started_notification";
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct GameStartedNotification {
-        pub start_position: usize, // TODO: change to enum
+        pub start_position: Player,
         pub player_position: [User; 4],
     }
 }

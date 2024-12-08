@@ -12,16 +12,10 @@ use common::{
     message::server_response::RegisterRoomResponse,
     room::{RoomId, RoomInfo, Visibility},
     user::User,
+    Game, Player,
 };
 
-#[derive(Debug, Clone)]
-pub enum GameStage {
-    Waiting,
-    Auction,
-    Play,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RoomState {
     users: HashSet<User>,
 
@@ -29,7 +23,7 @@ pub struct RoomState {
     /// This array is not cleared when player disconnects, so that no other player can take this place when player disconnects.
     player_positions: [Option<User>; 4],
 
-    stage: GameStage,
+    game: Game,
     pub info: RoomInfo,
 }
 
@@ -38,7 +32,7 @@ impl RoomState {
         Self {
             users: HashSet::new(),
             player_positions: [None, None, None, None],
-            stage: GameStage::Waiting,
+            game: Game::new(),
             info,
         }
     }
@@ -68,10 +62,10 @@ impl RoomState {
         self.users.remove(user)
     }
 
-    pub fn user_select_place(&mut self, user: &User, position: Option<usize>) -> bool {
-        // TODO: change position to other type
+    pub fn user_select_place(&mut self, user: &User, position: Option<Player>) -> bool {
         // TODO: if game already started, don't allow (return false)
-        if let Some(pos) = position {
+        if let Some(player_position) = position {
+            let pos = player_position.to_usize();
             if self.player_positions[pos].is_none() {
                 self.player_positions[pos] = Some(user.clone());
                 true
