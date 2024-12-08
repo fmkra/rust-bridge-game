@@ -47,7 +47,7 @@ impl Game {
         }
     }
 
-    pub fn start(&mut self) -> Result<GameState, GameError> {
+    pub fn start(&mut self) {
         let mut deck: Vec<Card> = (2..=14)
             .filter_map(Rank::from_u8)
             .flat_map(|rank| {
@@ -62,15 +62,12 @@ impl Game {
 
         self.player_cards = deck
             .chunks(13)
-            .take(4)
             .map(|chunk| chunk.to_vec())
             .collect::<Vec<_>>()
             .try_into()
             .unwrap(); // There's always a way to split 52 cards into 4*13
 
         self.state = GameState::Auction;
-
-        Ok(GameState::Auction)
     }
 
     pub fn place_bid(&mut self, player: &Player, bid: Bid) -> Result<GameState, GameError> {
@@ -115,7 +112,7 @@ impl Game {
         if self.current_player != *player {
             return Err(GameError::PlayerOutOfTurn);
         }
-        if !self.find_card(player, card) {
+        if !self.has_card(player, card) {
             return Err(GameError::CardNotFound);
         }
         let player_usize = player.to_usize();
@@ -154,11 +151,7 @@ impl Game {
         return &self.player_cards[player_usize];
     }
 
-    pub fn add_card(&mut self, c1: Card) {
-        self.current_trick.push(c1);
-    }
-
-    pub fn find_card(&self, player: &Player, card: &Card) -> bool {
+    pub fn has_card(&self, player: &Player, card: &Card) -> bool {
         let player_usize = player.to_usize();
         self.player_cards[player_usize]
             .iter()
@@ -188,10 +181,12 @@ impl Game {
     // This function is to be called only after the Auction phase of the game
     // and when the trick is not empty. Otherwise, the unwrap() will cause a panic!
     pub fn trick_max(&self) -> &Card {
+        // As the game is in Tricking state, try_into() will always return Some(BidType)
+        let bid_type = self.max_bid.try_into().unwrap();
         self.current_trick
             .iter()
             .max_by(|&cur, &card| {
-                cur.compare_with_trump(card, &self.max_bid)
+                cur.compare_with_trump(card, &bid_type)
                     .unwrap_or(std::cmp::Ordering::Greater)
             })
             .unwrap()

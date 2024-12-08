@@ -7,7 +7,7 @@ pub enum BidType {
     NoTrump,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Bid {
     Pass,
     Play(u8, BidType),
@@ -42,5 +42,16 @@ impl Ord for Bid {
 impl PartialOrd for Bid {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl TryInto<BidType> for Bid {
+    type Error = ();
+
+    fn try_into(self) -> Result<BidType, Self::Error> {
+        match self {
+            Bid::Pass => Err(()),
+            Bid::Play(_, typ) => Ok(typ),
+        }
     }
 }

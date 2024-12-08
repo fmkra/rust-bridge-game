@@ -1,4 +1,4 @@
-use crate::bid::{Bid, BidType};
+use crate::bid::BidType;
 use std::cmp::Ordering;
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug)]
@@ -62,19 +62,16 @@ impl Card {
         Card { rank, suit }
     }
 
-    pub fn compare_with_trump(&self, other: &Card, bid: &Bid) -> Option<Ordering> {
-        match bid {
-            Bid::Pass => None,
-            Bid::Play(_, bid_type) => match bid_type {
-                BidType::NoTrump => self.partial_cmp(&other),
-                BidType::Trump(trump_suit) => {
-                    if self.suit == *trump_suit && other.suit != *trump_suit {
-                        Some(Ordering::Greater)
-                    } else if self.suit != *trump_suit && other.suit == *trump_suit {
-                        Some(Ordering::Less)
-                    } else {
-                        self.partial_cmp(&other)
-                    }
+    pub fn compare_with_trump(&self, other: &Card, bid_type: &BidType) -> Option<Ordering> {
+        match bid_type {
+            BidType::NoTrump => self.partial_cmp(&other),
+            BidType::Trump(trump_suit) => {
+                if self.suit == *trump_suit && other.suit != *trump_suit {
+                    Some(Ordering::Greater)
+                } else if self.suit != *trump_suit && other.suit == *trump_suit {
+                    Some(Ordering::Less)
+                } else {
+                    self.partial_cmp(&other)
                 }
             },
         }

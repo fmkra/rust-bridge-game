@@ -28,42 +28,42 @@ fn card_compare_with_trump() {
     assert_eq!(
         card1.compare_with_trump(
             &card2,
-            &Bid::new(3, BidType::Trump(Suit::Hearts)).expect("Creating bid: 3 Hearts")
+            &BidType::Trump(Suit::Hearts)
         ),
         Some(Ordering::Less)
     );
     assert_eq!(
         card2.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::Trump(Suit::Hearts)).expect("Creating bid: 3 Hearts")
+            &BidType::Trump(Suit::Hearts)
         ),
         Some(Ordering::Greater)
     );
     assert_eq!(
         card1.compare_with_trump(
             &card2,
-            &Bid::new(3, BidType::Trump(Suit::Spades)).expect("Creating bid: 3 Spades")
+            &BidType::Trump(Suit::Spades)
         ),
         Some(Ordering::Less)
     );
     assert_eq!(
         card2.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::Trump(Suit::Spades)).expect("Creating bid: 3 Spades")
+            &BidType::Trump(Suit::Spades)
         ),
         Some(Ordering::Greater)
     );
     assert_eq!(
         card1.compare_with_trump(
             &card2,
-            &Bid::new(3, BidType::NoTrump).expect("Creating bid: 3 No Trump")
+            &BidType::NoTrump
         ),
         Some(Ordering::Less)
     );
     assert_eq!(
         card2.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::NoTrump).expect("Creating bid: 3 No Trump")
+            &BidType::NoTrump
         ),
         Some(Ordering::Greater)
     );
@@ -74,42 +74,42 @@ fn card_compare_with_trump() {
     assert_eq!(
         card1.compare_with_trump(
             &card3,
-            &Bid::new(3, BidType::NoTrump).expect("Creating bid: 3 No Trump")
+            &BidType::NoTrump
         ),
         None
     );
     assert_eq!(
         card3.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::NoTrump).expect("Creating bid: 3 No Trump")
+            &BidType::NoTrump
         ),
         None
     );
     assert_eq!(
         card1.compare_with_trump(
             &card3,
-            &Bid::new(3, BidType::Trump(Suit::Spades)).expect("Creating bid: 3 Spades")
+            &BidType::Trump(Suit::Spades)
         ),
         Some(Ordering::Greater)
     );
     assert_eq!(
         card3.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::Trump(Suit::Spades)).expect("Creating bid: 3 Spades")
+            &BidType::Trump(Suit::Spades)
         ),
         Some(Ordering::Less)
     );
     assert_eq!(
         card1.compare_with_trump(
             &card3,
-            &Bid::new(3, BidType::Trump(Suit::Hearts)).expect("Creating bid: 3 Hearts")
+            &BidType::Trump(Suit::Hearts)
         ),
         Some(Ordering::Less)
     );
     assert_eq!(
         card3.compare_with_trump(
             &card1,
-            &Bid::new(3, BidType::Trump(Suit::Hearts)).expect("Creating bid: 3 Hearts")
+            &BidType::Trump(Suit::Hearts)
         ),
         Some(Ordering::Greater)
     );
