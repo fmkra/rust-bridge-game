@@ -10,10 +10,7 @@ fn game_trick_max() {
     game1.add_card(Card::new(Rank::King, Suit::Clubs));
     game1.add_card(Card::new(Rank::Queen, Suit::Spades));
 
-    assert_eq!(
-        game1.trick_max(),
-        &Card::new(Rank::Queen, Suit::Spades)
-    );
+    assert_eq!(game1.trick_max(), &Card::new(Rank::Queen, Suit::Spades));
 
     // -------------------------------------
 
@@ -25,17 +22,14 @@ fn game_trick_max() {
     game2.add_card(Card::new(Rank::Queen, Suit::Spades));
     game2.add_card(Card::new(Rank::Seven, Suit::Clubs));
 
-    assert_eq!(
-        game2.trick_max(),
-        &Card::new(Rank::Two, Suit::Diamonds)
-    );
+    assert_eq!(game2.trick_max(), &Card::new(Rank::Two, Suit::Diamonds));
 }
 
 #[test]
 fn game_start() {
     let mut game = Game::new();
     assert_eq!(game.start(), Ok(GameState::Bidding));
-    
+
     let hands = game.player_cards;
     let mut cards: Vec<_> = hands.into_iter().flatten().collect();
     cards.sort_by(|a, b| {
@@ -99,10 +93,7 @@ fn game_place_bid() {
     );
     assert_eq!(
         Ok(GameState::Bidding),
-        game.place_bid(
-            &Player::North, 
-            Bid::new(3, BidType::NoTrump).unwrap()
-        )
+        game.place_bid(&Player::North, Bid::new(3, BidType::NoTrump).unwrap())
     );
 
     // Player Bidding out of his turn.
@@ -140,11 +131,11 @@ fn game_place_trick() {
     game.max_bid = Bid::new(3, BidType::NoTrump).unwrap();
     game.state = GameState::Tricking;
 
-    let mut cards_north : Vec<Card> = Vec::new(); 
-    let mut cards_east : Vec<Card> = Vec::new(); 
-    let mut cards_south : Vec<Card> = Vec::new(); 
-    let mut cards_west : Vec<Card> = Vec::new(); 
-    
+    let mut cards_north: Vec<Card> = Vec::new();
+    let mut cards_east: Vec<Card> = Vec::new();
+    let mut cards_south: Vec<Card> = Vec::new();
+    let mut cards_west: Vec<Card> = Vec::new();
+
     // Each of the players has all 2 - 10 cards from 1 suit.
     for rank_u8 in 2..10 {
         cards_north.push(Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs));
@@ -175,11 +166,23 @@ fn game_place_trick() {
 
     game.player_cards = [cards_north, cards_east, cards_south, cards_west];
 
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::East, &Card::new(Rank::Queen, Suit::Spades)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::South, &Card::new(Rank::King, Suit::Spades)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades)));
-    
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::East, &Card::new(Rank::Queen, Suit::Spades))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::South, &Card::new(Rank::King, Suit::Spades))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
+    );
+
     // Tricks are indexed from 0
     assert_eq!(game.trick_no, 1);
     assert_eq!(game.current_player, Player::West);
@@ -194,13 +197,31 @@ fn game_place_trick() {
         ]
     );
 
-    assert_eq!(Err(GameError::PlayerOutOfTurn), game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades)));
-    assert_eq!(Err(GameError::CardNotFound), game.trick(&Player::West, &Card::new(Rank::Two, Suit::Clubs)));
-    
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::West, &Card::new(Rank::Two, Suit::Spades)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::North, &Card::new(Rank::Two, Suit::Clubs)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::East, &Card::new(Rank::Two, Suit::Diamonds)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::South, &Card::new(Rank::Two, Suit::Hearts)));
+    assert_eq!(
+        Err(GameError::PlayerOutOfTurn),
+        game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades))
+    );
+    assert_eq!(
+        Err(GameError::CardNotFound),
+        game.trick(&Player::West, &Card::new(Rank::Two, Suit::Clubs))
+    );
+
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::West, &Card::new(Rank::Two, Suit::Spades))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::North, &Card::new(Rank::Two, Suit::Clubs))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::East, &Card::new(Rank::Two, Suit::Diamonds))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::South, &Card::new(Rank::Two, Suit::Hearts))
+    );
 
     assert_eq!(game.trick_no, 2);
     assert_eq!(game.current_player, Player::West);
@@ -223,11 +244,11 @@ fn game_place_trick() {
 #[test]
 fn game_full_game() {
     let mut game = Game::new();
-    let mut cards_north : Vec<Card> = Vec::new(); 
-    let mut cards_east : Vec<Card> = Vec::new(); 
-    let mut cards_south : Vec<Card> = Vec::new(); 
-    let mut cards_west : Vec<Card> = Vec::new(); 
-    
+    let mut cards_north: Vec<Card> = Vec::new();
+    let mut cards_east: Vec<Card> = Vec::new();
+    let mut cards_south: Vec<Card> = Vec::new();
+    let mut cards_west: Vec<Card> = Vec::new();
+
     // Setup mock just as in game.start() as it's random
     // Simple case - all clubs for north etc.
     for rank_u8 in 2..15 {
@@ -236,34 +257,117 @@ fn game_full_game() {
         cards_south.push(Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Hearts));
         cards_west.push(Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Spades));
     }
-    
+
     game.player_cards = [cards_north, cards_east, cards_south, cards_west];
     game.state = GameState::Bidding;
 
     // Bidding
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::North, Bid::new(2, BidType::Trump(Suit::Clubs)).unwrap()));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::East, Bid::new(2, BidType::Trump(Suit::Diamonds)).unwrap()));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::South, Bid::new(2, BidType::Trump(Suit::Hearts)).unwrap()));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::West, Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::North, Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::East, Bid::Pass));
-    assert_eq!(Ok(GameState::Bidding), game.place_bid(&Player::South, Bid::Pass));
-    assert_eq!(Ok(GameState::Tricking), game.place_bid(&Player::West, Bid::Pass));
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(
+            &Player::North,
+            Bid::new(2, BidType::Trump(Suit::Clubs)).unwrap()
+        )
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(
+            &Player::East,
+            Bid::new(2, BidType::Trump(Suit::Diamonds)).unwrap()
+        )
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(
+            &Player::South,
+            Bid::new(2, BidType::Trump(Suit::Hearts)).unwrap()
+        )
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(
+            &Player::West,
+            Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()
+        )
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(
+            &Player::North,
+            Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
+        )
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(&Player::East, Bid::Pass)
+    );
+    assert_eq!(
+        Ok(GameState::Bidding),
+        game.place_bid(&Player::South, Bid::Pass)
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.place_bid(&Player::West, Bid::Pass)
+    );
 
     // Tricking
     for rank_u8 in 2..14 {
-        assert_eq!(Ok(GameState::Tricking), game.trick(&Player::North, &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs)));
-        assert_eq!(Ok(GameState::Tricking), game.trick(&Player::East, &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds)));
-        assert_eq!(Ok(GameState::Tricking), game.trick(&Player::South, &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Hearts)));
-        assert_eq!(Ok(GameState::Tricking), game.trick(&Player::West, &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Spades)));
+        assert_eq!(
+            Ok(GameState::Tricking),
+            game.trick(
+                &Player::North,
+                &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs)
+            )
+        );
+        assert_eq!(
+            Ok(GameState::Tricking),
+            game.trick(
+                &Player::East,
+                &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds)
+            )
+        );
+        assert_eq!(
+            Ok(GameState::Tricking),
+            game.trick(
+                &Player::South,
+                &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Hearts)
+            )
+        );
+        assert_eq!(
+            Ok(GameState::Tricking),
+            game.trick(
+                &Player::West,
+                &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Spades)
+            )
+        );
     }
 
     eprintln!("{:?}", game.player_cards[0]);
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::North, &Card::new(Rank::Ace, Suit::Clubs)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::East, &Card::new(Rank::Ace, Suit::Diamonds)));
-    assert_eq!(Ok(GameState::Tricking), game.trick(&Player::South, &Card::new(Rank::Ace, Suit::Hearts)));
-    assert_eq!(Ok(GameState::Finished), game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades)));
-    
-    assert_eq!([Vec::<Card>::new(), Vec::<Card>::new(), Vec::<Card>::new(), Vec::<Card>::new()], game.player_cards);
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::North, &Card::new(Rank::Ace, Suit::Clubs))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::East, &Card::new(Rank::Ace, Suit::Diamonds))
+    );
+    assert_eq!(
+        Ok(GameState::Tricking),
+        game.trick(&Player::South, &Card::new(Rank::Ace, Suit::Hearts))
+    );
+    assert_eq!(
+        Ok(GameState::Finished),
+        game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
+    );
+
+    assert_eq!(
+        [
+            Vec::<Card>::new(),
+            Vec::<Card>::new(),
+            Vec::<Card>::new(),
+            Vec::<Card>::new()
+        ],
+        game.player_cards
+    );
     assert_eq!(13, game.trick_no);
 }
