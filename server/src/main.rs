@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use common::message::client_message::GET_CARDS_MESSAGE;
+use common::message::server_response::{GetCardsResponse, GET_CARDS_RESPONSE};
 use common::user::User;
 use common::{
     message::{
@@ -279,9 +281,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(player_position) = player_position_all_taken {
                     info!("Game started in room \"{}\"", room_id.as_str());
 
-                    let msg = GameStartedNotification {
-                        start_position: Player::North, // TODO: change to enum
-                        player_position: player_position,
+                    let msg = {
+                        let mut room_lock = room.write().await;
+                        room_lock.game.start();
+                        GameStartedNotification {
+                            start_position: room_lock.game.current_player,
+                            player_position: player_position,
+                        }
                     };
 
                     s.within(RoomWrapper(room_id.clone()))
@@ -290,6 +296,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         );
+
+        s.on(GET_CARDS_MESSAGE, |s: SocketRef| async move {
+            let Some(client_data) = s.extensions.get::<ClientData>() else {
+                s.emit(GET_CARDS_RESPONSE, &GetCardsResponse::Unauthenticated).unwrap();
+                return;
+            };
+            let Some(room) = client_data.room else {
+                s.emit(GET_CARDS_RESPONSE, &GetCardsResponse::NotInRoom).unwrap();
+                return;
+            };
+
+            let cards = {
+                let room_lock = room.read().await;
+                let player = room_lock.find_player_position(&client_data.user);
+                room_lock.game.get_cards(&player.unwrap()).clone() // TODO: handle spectator user
+            };
+
+            s.emit(GET_CARDS_RESPONSE, &GetCardsResponse::Ok(cards)).unwrap();
+        });
 
         // s.on(
         //     "msg",

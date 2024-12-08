@@ -23,7 +23,7 @@ pub struct RoomState {
     /// This array is not cleared when player disconnects, so that no other player can take this place when player disconnects.
     player_positions: [Option<User>; 4],
 
-    game: Game,
+    pub game: Game,
     pub info: RoomInfo,
 }
 
@@ -79,6 +79,13 @@ impl RoomState {
 
     pub fn get_player_positions(&self) -> [Option<User>; 4] {
         self.player_positions.clone()
+    }
+
+    pub fn find_player_position(&self, user: &User) -> Option<Player> {
+        self.player_positions
+            .iter()
+            .position(|pos| pos.as_ref() == Some(user))
+            .map(|pos| Player::from_usize(pos).unwrap())
     }
 }
 

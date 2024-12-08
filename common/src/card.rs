@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::bid::BidType;
 use std::cmp::Ordering;
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Rank {
     Two = 2,
     Three = 3,
@@ -43,7 +45,7 @@ impl Rank {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -51,7 +53,7 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,

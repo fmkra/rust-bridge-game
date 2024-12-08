@@ -10,12 +10,13 @@ use tokio::{
 };
 
 use common::{
+    card,
     message::{
         client_message::{
-            JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage, ListRoomsMessage, LoginMessage,
-            RegisterRoomMessage, SelectPlaceMessage, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE,
-            LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE,
-            SELECT_PLACE_MESSAGE,
+            GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
+            ListRoomsMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage,
+            GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE,
+            LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
         },
         server_notification::{
             GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
@@ -23,9 +24,10 @@ use common::{
             LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
         },
         server_response::{
-            LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse, LoginResponse,
-            SelectPlaceResponse, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE,
-            LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
+            GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
+            LoginResponse, SelectPlaceResponse, GET_CARDS_RESPONSE, JOIN_ROOM_RESPONSE,
+            LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE,
+            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
         },
     },
     room::{RoomId, RoomInfo, Visibility},
@@ -41,8 +43,7 @@ struct WelcomeMessage {
 
 #[tokio::main]
 async fn main() {
-    let game_start_notifier = Arc::new(Notify::new());
-    let game_start_notifier_clone = game_start_notifier.clone();
+    let (card_list_tx, mut card_list_rx) = mpsc::channel(1);
 
     let register_room_notifier = Arc::new(Notify::new());
     let register_room_notifier_clone = register_room_notifier.clone();
@@ -226,8 +227,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(GAME_STARTED_NOTIFICATION, move |payload, _| {
-            let notifier = game_start_notifier_clone.clone();
+        .on(GAME_STARTED_NOTIFICATION, move |payload, c| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -236,7 +236,28 @@ async fn main() {
                     _ => return,
                 };
                 println!("Game started {:?}", msg);
-                notifier.notify_one();
+                c.emit(GET_CARDS_MESSAGE, to_string(&GetCardsMessage {}).unwrap())
+                    .await
+                    .unwrap();
+            }
+            .boxed()
+        })
+        .on(GET_CARDS_RESPONSE, move |payload, _| {
+            let card_list_tx = card_list_tx.clone();
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<GetCardsResponse>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                let cards = match msg {
+                    GetCardsResponse::Ok(cards) => cards,
+                    _ => {
+                        return;
+                    }
+                };
+                card_list_tx.send(cards).await.unwrap();
             }
             .boxed()
         })
@@ -390,9 +411,11 @@ async fn main() {
             }
         }
 
-        game_start_notifier.notified().await;
+        let cards = card_list_rx.recv().await.unwrap();
 
         println!("Starting game...");
+
+        println!("my cards are {:?}", cards);
 
         sleep(Duration::from_secs(2)).await;
 

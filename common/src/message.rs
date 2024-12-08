@@ -69,9 +69,18 @@ pub mod client_message {
     pub struct SelectPlaceMessage {
         pub position: Option<Player>,
     }
+
+    pub const GET_CARDS_MESSAGE: &str = "get_cards";
+
+    /// Message sent by client when requesting his list of cards
+    /// Server answers with GetCardsResponse message
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct GetCardsMessage {}
 }
 
 pub mod server_response {
+    use crate::Card;
+
     use super::*;
 
     pub const LOGIN_RESPONSE: &str = "login_response";
@@ -143,6 +152,17 @@ pub mod server_response {
         Ok,
         NotInRoom,
         PlaceAlreadyTaken,
+        Unauthenticated,
+    }
+
+    pub const GET_CARDS_RESPONSE: &str = "get_cards_response";
+
+    /// Answer from server for GetCards
+    /// Returns list of cards
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub enum GetCardsResponse {
+        Ok(Vec<Card>),
+        NotInRoom,
         Unauthenticated,
     }
 }
