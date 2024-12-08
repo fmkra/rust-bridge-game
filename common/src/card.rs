@@ -73,7 +73,7 @@ impl Card {
                 } else {
                     self.partial_cmp(&other)
                 }
-            },
+            }
         }
     }
 }

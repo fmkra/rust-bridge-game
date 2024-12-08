@@ -5,10 +5,16 @@ fn game_trick_max() {
     let mut game1 = Game::new();
     game1.max_bid = Bid::new(2, BidType::Trump(Suit::Spades)).expect("Create bid: 2 Spades");
 
-    game1.current_trick.push(Card::new(Rank::Three, Suit::Spades));
-    game1.current_trick.push(Card::new(Rank::Five, Suit::Diamonds));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Three, Suit::Spades));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Five, Suit::Diamonds));
     game1.current_trick.push(Card::new(Rank::King, Suit::Clubs));
-    game1.current_trick.push(Card::new(Rank::Queen, Suit::Spades));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Queen, Suit::Spades));
 
     assert_eq!(game1.trick_max(), &Card::new(Rank::Queen, Suit::Spades));
 
@@ -17,10 +23,18 @@ fn game_trick_max() {
     let mut game2 = Game::new();
     game2.max_bid = Bid::new(6, BidType::NoTrump).expect("Create bid: 6 No Trump");
 
-    game2.current_trick.push(Card::new(Rank::Two, Suit::Diamonds));
-    game2.current_trick.push(Card::new(Rank::Five, Suit::Hearts));
-    game2.current_trick.push(Card::new(Rank::Queen, Suit::Spades));
-    game2.current_trick.push(Card::new(Rank::Seven, Suit::Clubs));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Two, Suit::Diamonds));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Five, Suit::Hearts));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Queen, Suit::Spades));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Seven, Suit::Clubs));
 
     assert_eq!(game2.trick_max(), &Card::new(Rank::Two, Suit::Diamonds));
 }
