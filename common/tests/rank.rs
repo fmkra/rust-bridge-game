@@ -17,5 +17,5 @@ fn rank_to() {
     let rank2 = Rank::Seven;
 
     assert_eq!(rank1.to_u8(), 14);
-    assert_eq!(rank2.to_u8(), 7);   
+    assert_eq!(rank2.to_u8(), 7);
 }
