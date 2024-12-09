@@ -7,7 +7,7 @@ use crate::{
 
 /// Messages sent from client to server
 pub mod client_message {
-    use crate::Player;
+    use crate::{Bid, Card, Player};
 
     use super::*;
 
@@ -76,10 +76,19 @@ pub mod client_message {
     /// Server answers with GetCardsResponse message
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct GetCardsMessage {}
+
+    pub const MAKE_BID_MESSAGE: &str = "make_bid";
+
+    /// Message sent by client when making a bid
+    /// Server answers with MakeBidResponse message
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct MakeBidMessage {
+        pub bid: Bid,
+    }
 }
 
 pub mod server_response {
-    use crate::Card;
+    use crate::{Card, Player};
 
     use super::*;
 
@@ -161,14 +170,28 @@ pub mod server_response {
     /// Returns list of cards
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub enum GetCardsResponse {
-        Ok(Vec<Card>),
+        Ok { cards: Vec<Card>, position: Player },
         NotInRoom,
+        Unauthenticated,
+    }
+
+    pub const MAKE_BID_RESPONSE: &str = "make_bid_response";
+
+    /// Answer from server for TrickMessage
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub enum MakeBidResponse {
+        Ok,
+        NotInRoom,
+        SpectatorNotAllowed,
+        NotYourTurn,
+        AuctionNotInProcess,
+        InvalidBid,
         Unauthenticated,
     }
 }
 
 pub mod server_notification {
-    use crate::Player;
+    use crate::{Bid, Card, Player};
 
     use super::*;
 
@@ -203,4 +226,30 @@ pub mod server_notification {
         pub start_position: Player,
         pub player_position: [User; 4],
     }
+
+    pub const MAKE_BID_NOTIFICATION: &str = "make_bid_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct MakeBidNotification {
+        pub player: Player,
+        pub bid: Bid,
+    }
+
+    pub const ASK_BID_NOTIFICATION: &str = "ask_bid_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct AskBidNotification {
+        pub player: Player,
+        pub max_bid: Bid,
+    }
+
+    pub const AUCTION_FINISHED_NOTIFICATION: &str = "auction_finished_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct AuctionFinishedNotificationInner {
+        pub winner: Player,
+        pub max_bid: Bid,
+    }
+
+    pub type AuctionFinishedNotification = Option<AuctionFinishedNotificationInner>;
 }

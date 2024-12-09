@@ -5,7 +5,7 @@ use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
 use tokio::{
-    sync::{mpsc, Notify},
+    sync::{mpsc, Mutex, Notify},
     time::sleep,
 };
 
@@ -14,25 +14,28 @@ use common::{
     message::{
         client_message::{
             GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
-            ListRoomsMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage,
-            GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE,
-            LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+            ListRoomsMessage, LoginMessage, MakeBidMessage, RegisterRoomMessage,
+            SelectPlaceMessage, GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE,
+            LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, MAKE_BID_MESSAGE,
+            REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
         },
         server_notification::{
+            AskBidNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner,
             GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
-            SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
-            LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+            SelectPlaceNotification, ASK_BID_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION,
+            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
+            SELECT_PLACE_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
-            LoginResponse, SelectPlaceResponse, GET_CARDS_RESPONSE, JOIN_ROOM_RESPONSE,
-            LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE,
-            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
+            LoginResponse, MakeBidResponse, SelectPlaceResponse, GET_CARDS_RESPONSE,
+            JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE,
+            LOGIN_RESPONSE, MAKE_BID_RESPONSE, REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
         },
     },
     room::{RoomId, RoomInfo, Visibility},
     user::User,
-    Player,
+    Bid, BidType, Card, Player, Rank, Suit,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -43,7 +46,15 @@ struct WelcomeMessage {
 
 #[tokio::main]
 async fn main() {
+    let (my_position_tx, mut my_position_rx) = mpsc::channel(1);
+    let my_position_tx_1 = my_position_tx.clone();
+
+    let (ask_bid_tx, mut ask_bid_rx) = mpsc::channel(1);
+    let ask_bid_tx_1 = ask_bid_tx.clone();
+    let ask_bid_tx_2 = ask_bid_tx.clone();
+
     let (card_list_tx, mut card_list_rx) = mpsc::channel(1);
+    let card_list_tx_1 = card_list_tx.clone();
 
     let register_room_notifier = Arc::new(Notify::new());
     let register_room_notifier_clone = register_room_notifier.clone();
@@ -243,7 +254,8 @@ async fn main() {
             .boxed()
         })
         .on(GET_CARDS_RESPONSE, move |payload, _| {
-            let card_list_tx = card_list_tx.clone();
+            let card_list_tx = card_list_tx_1.clone();
+            let my_position_tx = my_position_tx_1.clone();
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -252,12 +264,65 @@ async fn main() {
                     _ => return,
                 };
                 let cards = match msg {
-                    GetCardsResponse::Ok(cards) => cards,
+                    GetCardsResponse::Ok { cards, position } => {
+                        my_position_tx.send(position).await.unwrap();
+                        cards
+                    }
                     _ => {
                         return;
                     }
                 };
                 card_list_tx.send(cards).await.unwrap();
+            }
+            .boxed()
+        })
+        .on(ASK_BID_NOTIFICATION, move |payload, _| {
+            let ask_bid_tx = ask_bid_tx_1.clone();
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<AskBidNotification>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                ask_bid_tx.send(Some(msg)).await.unwrap();
+            }
+            .boxed()
+        })
+        .on(MAKE_BID_RESPONSE, move |payload, _| {
+            let ask_bid_tx = ask_bid_tx_2.clone();
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<MakeBidResponse>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                match msg {
+                    MakeBidResponse::InvalidBid => {
+                        println!("Invalid bid");
+                        ask_bid_tx.send(None).await.unwrap();
+                    }
+                    _ => {}
+                }
+            }
+            .boxed()
+        })
+        .on(AUCTION_FINISHED_NOTIFICATION, move |payload, _| {
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<AuctionFinishedNotification>(text[0].clone())
+                            .unwrap()
+                    }
+                    _ => return,
+                };
+                let msg = msg.expect("No winner");
+                println!(
+                    "Auction finished - {:?} won with bid {}",
+                    msg.winner,
+                    msg.max_bid.to_str()
+                );
             }
             .boxed()
         })
@@ -415,14 +480,117 @@ async fn main() {
 
         println!("Starting game...");
 
-        println!("my cards are {:?}", cards);
+        println!(
+            "Your cards: {}",
+            cards
+                .iter()
+                .map(Card::to_string)
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
 
-        sleep(Duration::from_secs(2)).await;
+        let my_position = my_position_rx.recv().await.unwrap();
+        let mut persistent_bid = None;
+        loop {
+            let new_bid = ask_bid_rx.recv().await.unwrap();
+            if let Some(b) = new_bid {
+                persistent_bid = Some(b);
+            }
+            let bid = persistent_bid.clone().unwrap();
+
+            if bid.player != my_position {
+                println!("{:?} is bidding", bid.player);
+                continue;
+            }
+            println!("Your turn to bid.");
+            println!("Highest bid is {}", bid.max_bid.to_str());
+
+            loop {
+                println!("[p] - Pass");
+                println!("[value] [suit] - Bid");
+                println!("Suits are:");
+                println!("0 - Clubs");
+                println!("1 - Diamonds");
+                println!("2 - Hearts");
+                println!("3 - Spades");
+                println!("4 - No Trump");
+
+                let mut bid = String::new();
+                std::io::stdout().flush().unwrap();
+                std::io::stdin().read_line(&mut bid).unwrap();
+                let bid = bid.trim();
+                if bid == "p" {
+                    socket
+                        .emit(
+                            MAKE_BID_MESSAGE,
+                            to_string(&MakeBidMessage { bid: Bid::Pass }).unwrap(),
+                        )
+                        .await
+                        .unwrap();
+                    break;
+                }
+                let Some((value, trump)) = bid.split_once(" ") else {
+                    println!("Invalid bid");
+                    continue;
+                };
+                let Ok(value) = value.parse::<u8>() else {
+                    println!("Invalid value");
+                    continue;
+                };
+                let trump = match trump {
+                    "0" => BidType::Trump(Suit::Clubs),
+                    "1" => BidType::Trump(Suit::Diamonds),
+                    "2" => BidType::Trump(Suit::Hearts),
+                    "3" => BidType::Trump(Suit::Spades),
+                    "4" => BidType::NoTrump,
+                    _ => {
+                        println!("Invalid suit");
+                        continue;
+                    }
+                };
+                let Some(bid) = Bid::new(value, trump) else {
+                    println!("Invalid value");
+                    continue;
+                };
+
+                socket
+                    .emit(
+                        MAKE_BID_MESSAGE,
+                        to_string(&MakeBidMessage { bid }).unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                // if let Ok(card) = Card::from(
+                //     Suit::from(card.chars().nth(0).unwrap()),
+                //     card[1..].parse::<u8>().unwrap(),
+                // ) {
+                //     break;
+                // } else {
+                //     println!("Invalid card");
+                // }
+                break;
+            }
+        }
 
         socket
             .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
             .await
             .unwrap();
+
+        // println!("=waiting on lock=");
+        // my_position_ready.notified().await;
+        // println!("=lock released=");
+        // if msg.player == my_position.lock().await.unwrap() {
+        //     println!(
+        //         "It's your turn\nTrick is: {}",
+        //         msg.trick_cards
+        //             .iter()
+        //             .map(card::Card::to_string)
+        //             .collect::<Vec<String>>()
+        //             .join(" ")
+        //     );
+        //     turn_notifier.notify_one();
+        // }
     }
 
     socket.disconnect().await.expect("Disconnect failed");

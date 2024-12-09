@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use common::message::client_message::GET_CARDS_MESSAGE;
-use common::message::server_response::{GetCardsResponse, GET_CARDS_RESPONSE};
+use common::message::client_message::{MakeBidMessage, GET_CARDS_MESSAGE, MAKE_BID_MESSAGE};
+use common::message::server_notification::{AskBidNotification, AuctionFinishedNotificationInner, ASK_BID_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION};
+use common::message::server_response::{GetCardsResponse, MakeBidResponse, GET_CARDS_RESPONSE, MAKE_BID_RESPONSE};
 use common::user::User;
+use common::{Bid, GameError, GameState};
 use common::{
     message::{
         client_message::{
@@ -281,18 +283,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(player_position) = player_position_all_taken {
                     info!("Game started in room \"{}\"", room_id.as_str());
 
-                    let msg = {
+                    let (msg, first_player, previous_game_state) = {
                         let mut room_lock = room.write().await;
-                        room_lock.game.start();
-                        GameStartedNotification {
+                        let previous_game_state = room_lock.game.state;
+                        if previous_game_state == GameState::WaitingForPlayers {
+                            room_lock.game.start();
+                        }   
+                        let msg = GameStartedNotification {
                             start_position: room_lock.game.current_player,
                             player_position: player_position,
-                        }
+                        };
+                        (msg, room_lock.game.current_player, previous_game_state)
                     };
 
-                    s.within(RoomWrapper(room_id.clone()))
-                        .emit(GAME_STARTED_NOTIFICATION, &msg)
-                        .unwrap();
+                    let msg2 = AskBidNotification {
+                        player: first_player,
+                        max_bid: Bid::Pass,
+                    };
+
+                    if previous_game_state == GameState::WaitingForPlayers {
+                        s.within(RoomWrapper(room_id.clone())).emit(GAME_STARTED_NOTIFICATION, &msg).unwrap();
+
+                        s.within(RoomWrapper(room_id.clone())).emit(ASK_BID_NOTIFICATION, &msg2).unwrap();
+                    } else {
+                        s.emit(GAME_STARTED_NOTIFICATION, &msg).unwrap();
+                        s.emit(ASK_BID_NOTIFICATION, &msg2).unwrap();
+                    }
                 }
             }
         );
@@ -307,13 +323,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return;
             };
 
-            let cards = {
+            let (position, cards) = {
                 let room_lock = room.read().await;
-                let player = room_lock.find_player_position(&client_data.user);
-                room_lock.game.get_cards(&player.unwrap()).clone() // TODO: handle spectator user
+                let position = room_lock.find_player_position(&client_data.user);
+                let position = position.unwrap();  // TODO: handle spectator user
+                let cards = room_lock.game.get_cards(&position).clone();
+                (position, cards)
             };
 
-            s.emit(GET_CARDS_RESPONSE, &GetCardsResponse::Ok(cards)).unwrap();
+            let msg = GetCardsResponse::Ok { cards, position };
+            s.emit(GET_CARDS_RESPONSE, &msg).unwrap();
+        });
+        
+        s.on(MAKE_BID_MESSAGE, |s: SocketRef, Data::<MakeBidMessage>(data)| async move {
+            let Some(client_data) = s.extensions.get::<ClientData>() else {
+                s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::Unauthenticated).unwrap();
+                return;
+            };
+            let Some(room) = client_data.room else {
+                s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::NotInRoom).unwrap();
+                return;
+            };
+
+            let mut room_lock = room.write().await;
+            
+            let Some(player) = room_lock.find_player_position(&client_data.user) else {
+                s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::SpectatorNotAllowed).unwrap();
+                return;
+            };
+
+            match room_lock.game.place_bid(&player, data.bid) {
+                Err(GameError::GameStateMismatch) => {
+                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::AuctionNotInProcess).unwrap();
+                },
+                Err(GameError::PlayerOutOfTurn) => {
+                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::NotYourTurn).unwrap();
+                },
+                Err(GameError::WrongBid) => {
+                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::InvalidBid).unwrap();
+                },
+                Ok(next_state) => {
+                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::Ok).unwrap();
+
+                    let room_handle = RoomWrapper(room_lock.info.id.clone());
+                    if next_state == GameState::Auction {
+                        s.within(room_handle).emit(ASK_BID_NOTIFICATION, &AskBidNotification {
+                            player: room_lock.game.current_player,
+                            max_bid: room_lock.game.max_bid,
+                        }).unwrap();
+                    } else {
+                        s.within(room_handle).emit(AUCTION_FINISHED_NOTIFICATION, &Some(AuctionFinishedNotificationInner {
+                            winner: room_lock.game.max_bidder,
+                            max_bid: room_lock.game.max_bid,
+                        })).unwrap();
+                    }
+                },
+                _ => {}
+            }
         });
 
         // s.on(

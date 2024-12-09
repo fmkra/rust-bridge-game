@@ -1,13 +1,24 @@
+use serde::{Deserialize, Serialize};
+
 use crate::card::Suit;
 use std::cmp::Ordering;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
     Trump(Suit),
     NoTrump,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+impl BidType {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Self::Trump(suit) => suit.to_str(),
+            Self::NoTrump => "No Trump",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Bid {
     Pass,
     Play(u8, BidType),
@@ -19,6 +30,13 @@ impl Bid {
             Some(Bid::Play(number, typ))
         } else {
             None
+        }
+    }
+
+    pub fn to_str(&self) -> String {
+        match self {
+            Self::Pass => "Pass".into(),
+            Self::Play(number, typ) => format!("{} {}", number, typ.to_str()),
         }
     }
 }

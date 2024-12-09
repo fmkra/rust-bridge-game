@@ -43,6 +43,43 @@ impl Rank {
     pub fn to_u8(&self) -> u8 {
         *self as u8
     }
+
+    pub fn to_str(&self) -> &str {
+        match self {
+            Rank::Two => "2",
+            Rank::Three => "3",
+            Rank::Four => "4",
+            Rank::Five => "5",
+            Rank::Six => "6",
+            Rank::Seven => "7",
+            Rank::Eight => "8",
+            Rank::Nine => "9",
+            Rank::Ten => "10",
+            Rank::Jack => "J",
+            Rank::Queen => "Q",
+            Rank::King => "K",
+            Rank::Ace => "A",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "2" => Some(Rank::Two),
+            "3" => Some(Rank::Three),
+            "4" => Some(Rank::Four),
+            "5" => Some(Rank::Five),
+            "6" => Some(Rank::Six),
+            "7" => Some(Rank::Seven),
+            "8" => Some(Rank::Eight),
+            "9" => Some(Rank::Nine),
+            "10" => Some(Rank::Ten),
+            "J" => Some(Rank::Jack),
+            "Q" => Some(Rank::Queen),
+            "K" => Some(Rank::King),
+            "A" => Some(Rank::Ace),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -51,6 +88,17 @@ pub enum Suit {
     Diamonds,
     Hearts,
     Spades,
+}
+
+impl Suit {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Suit::Clubs => "♣",
+            Suit::Diamonds => "♦",
+            Suit::Hearts => "♥",
+            Suit::Spades => "♠",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -77,6 +125,10 @@ impl Card {
                 }
             }
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{}{}", self.rank.to_str(), self.suit.to_str())
     }
 }
 
