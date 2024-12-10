@@ -14,23 +14,24 @@ use common::{
     message::{
         client_message::{
             GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
-            ListRoomsMessage, LoginMessage, MakeBidMessage, RegisterRoomMessage,
+            ListRoomsMessage, LoginMessage, MakeBidMessage, MakeTrickMessage, RegisterRoomMessage,
             SelectPlaceMessage, GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE,
             LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, MAKE_BID_MESSAGE,
-            REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+            MAKE_TRICK_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
         },
         server_notification::{
-            AskBidNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner,
-            GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
-            SelectPlaceNotification, ASK_BID_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION,
-            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
-            SELECT_PLACE_NOTIFICATION,
+            AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
+            AuctionFinishedNotificationInner, GameStartedNotification, JoinRoomNotification,
+            LeaveRoomNotification, SelectPlaceNotification, ASK_BID_NOTIFICATION,
+            ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION,
+            JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
-            LoginResponse, MakeBidResponse, SelectPlaceResponse, GET_CARDS_RESPONSE,
-            JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE,
-            LOGIN_RESPONSE, MAKE_BID_RESPONSE, REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
+            LoginResponse, MakeBidResponse, MakeTrickResponse, SelectPlaceResponse,
+            GET_CARDS_RESPONSE, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE,
+            LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, MAKE_BID_RESPONSE, MAKE_TRICK_RESPONSE,
+            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
         },
     },
     room::{RoomId, RoomInfo, Visibility},
@@ -52,9 +53,17 @@ async fn main() {
     let (ask_bid_tx, mut ask_bid_rx) = mpsc::channel(1);
     let ask_bid_tx_1 = ask_bid_tx.clone();
     let ask_bid_tx_2 = ask_bid_tx.clone();
+    let ask_bid_tx_3 = ask_bid_tx.clone();
+
+    let (ask_trick_tx, mut ask_trick_rx) = mpsc::channel(1);
+    let ask_trick_tx_1 = ask_trick_tx.clone();
+    let ask_trick_tx_2 = ask_trick_tx.clone();
 
     let (card_list_tx, mut card_list_rx) = mpsc::channel(1);
     let card_list_tx_1 = card_list_tx.clone();
+
+    let auction_result = Arc::new(Mutex::new(None));
+    let auction_result_clone = auction_result.clone();
 
     let register_room_notifier = Arc::new(Notify::new());
     let register_room_notifier_clone = register_room_notifier.clone();
@@ -309,6 +318,8 @@ async fn main() {
             .boxed()
         })
         .on(AUCTION_FINISHED_NOTIFICATION, move |payload, _| {
+            let auction_result = auction_result_clone.clone();
+            let ask_bid_tx = ask_bid_tx_3.clone();
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -317,17 +328,45 @@ async fn main() {
                     }
                     _ => return,
                 };
-                let msg = msg.expect("No winner");
-                println!(
-                    "Auction finished - {:?} won with bid {}",
-                    msg.winner,
-                    msg.max_bid.to_str()
-                );
+                let msg = msg.expect("No winner"); // TODO: 4 passes
+                *auction_result.lock().await = Some(msg);
+                ask_bid_tx.send(None).await.unwrap();
             }
             .boxed()
         })
-        .on("error", |err, _| {
-            async move { eprintln!("Error: {:#?}", err) }.boxed()
+        .on(ASK_TRICK_NOTIFICATION, move |payload, _| {
+            let ask_trick_tx = ask_trick_tx_1.clone();
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<AskTrickNotification>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                ask_trick_tx.send(Some(msg)).await.unwrap();
+            }
+            .boxed()
+        })
+        .on(MAKE_TRICK_RESPONSE, move |payload, _| {
+            let ask_trick_tx = ask_trick_tx_2.clone();
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<MakeTrickResponse>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                match msg {
+                    MakeTrickResponse::InvalidCard => {
+                        println!("Invalid card");
+                        ask_trick_tx.send(None).await.unwrap();
+                    }
+                    m => {
+                        println!("trick response {:?}", m);
+                    }
+                }
+            }
+            .boxed()
         })
         .connect()
         .await
@@ -491,10 +530,17 @@ async fn main() {
 
         let my_position = my_position_rx.recv().await.unwrap();
         let mut persistent_bid = None;
-        loop {
+        let auction_result = loop {
             let new_bid = ask_bid_rx.recv().await.unwrap();
             if let Some(b) = new_bid {
                 persistent_bid = Some(b);
+            } else {
+                let mut mutex = auction_result.lock().await;
+                if let Some(result) = mutex.as_ref() {
+                    let r = result.clone();
+                    *mutex = None;
+                    break r;
+                }
             }
             let bid = persistent_bid.clone().unwrap();
 
@@ -569,6 +615,102 @@ async fn main() {
                 //     println!("Invalid card");
                 // }
                 break;
+            }
+        };
+
+        let mut persistent_trick = None;
+
+        println!("Auction result is {:?}", auction_result);
+
+        loop {
+            let trick = ask_trick_rx.recv().await.unwrap();
+            if let Some(t) = trick {
+                persistent_trick = Some(t);
+            }
+
+            let trick = persistent_trick.clone().unwrap();
+
+            if trick.player != my_position {
+                println!("{:?} is tricking", trick.player);
+                continue;
+            }
+
+            loop {
+                println!(
+                    "Your cards: {}",
+                    cards
+                        .iter()
+                        .map(Card::to_string)
+                        .collect::<Vec<String>>()
+                        .join(" ")
+                );
+
+                let mut trick_string = trick
+                    .cards
+                    .iter()
+                    .map(Card::to_string)
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                if trick_string.is_empty() {
+                    trick_string.push_str("[empty]");
+                }
+
+                println!("Trick to: {}", trick_string);
+
+                println!("[rank] [suit]");
+                println!("Suits are:");
+                println!("0 - Clubs");
+                println!("1 - Diamonds");
+                println!("2 - Hearts");
+                println!("3 - Spades");
+                println!("Ranks are:");
+                println!("2-10 | J | Q | K | A");
+
+                let mut card = String::new();
+                std::io::stdout().flush().unwrap();
+                std::io::stdin().read_line(&mut card).unwrap();
+                let card = card.trim();
+
+                let Some((rank, suit)) = card.split_once(" ") else {
+                    println!("Invalid card");
+                    continue;
+                };
+
+                let Some(rank) = Rank::from_str(rank) else {
+                    println!("Invalid rank");
+                    continue;
+                };
+
+                let suit = match suit {
+                    "0" => Suit::Clubs,
+                    "1" => Suit::Diamonds,
+                    "2" => Suit::Hearts,
+                    "3" => Suit::Spades,
+                    _ => {
+                        println!("Invalid suit");
+                        continue;
+                    }
+                };
+
+                let card = Card::new(rank, suit);
+
+                println!("Playing card {}", card.to_string());
+                socket
+                    .emit(
+                        MAKE_TRICK_MESSAGE,
+                        to_string(&MakeTrickMessage { card }).unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                break;
+                // if let Ok(card) = Card::from(
+                //     Suit::from(card.chars().nth(0).unwrap()),
+                //     card[1..].parse::<u8>().unwrap(),
+                // ) {
+                //     break;
+                // } else {
+                //     println!("Invalid card");
+                // }
             }
         }
 

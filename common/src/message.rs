@@ -85,6 +85,15 @@ pub mod client_message {
     pub struct MakeBidMessage {
         pub bid: Bid,
     }
+
+    pub const MAKE_TRICK_MESSAGE: &str = "make_trick";
+
+    /// Message sent by client when making a trick
+    /// Server answers with MakeTrickResponse message
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct MakeTrickMessage {
+        pub card: Card,
+    }
 }
 
 pub mod server_response {
@@ -171,6 +180,7 @@ pub mod server_response {
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub enum GetCardsResponse {
         Ok { cards: Vec<Card>, position: Player },
+        SpectatorNotAllowed,
         NotInRoom,
         Unauthenticated,
     }
@@ -186,6 +196,20 @@ pub mod server_response {
         NotYourTurn,
         AuctionNotInProcess,
         InvalidBid,
+        Unauthenticated,
+    }
+
+    pub const MAKE_TRICK_RESPONSE: &str = "make_trick_response";
+
+    /// Answer from server for TrickMessage
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub enum MakeTrickResponse {
+        Ok,
+        NotInRoom,
+        SpectatorNotAllowed,
+        NotYourTurn,
+        TrickNotInProcess,
+        InvalidCard,
         Unauthenticated,
     }
 }
@@ -252,4 +276,12 @@ pub mod server_notification {
     }
 
     pub type AuctionFinishedNotification = Option<AuctionFinishedNotificationInner>;
+
+    pub const ASK_TRICK_NOTIFICATION: &str = "ask_trick_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct AskTrickNotification {
+        pub player: Player,
+        pub cards: Vec<Card>,
+    }
 }
