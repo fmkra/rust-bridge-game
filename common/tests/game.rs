@@ -126,10 +126,7 @@ fn game_place_bid() {
         )
     );
 
-    assert_eq!(
-        BidStatus::Auction,
-        game.place_bid(&Player::East, Bid::Pass)
-    );
+    assert_eq!(BidStatus::Auction, game.place_bid(&Player::East, Bid::Pass));
     assert_eq!(
         BidStatus::Auction,
         game.place_bid(&Player::South, Bid::Pass)
@@ -197,7 +194,7 @@ fn game_place_trick() {
     let mut trick_state = TrickState::new(
         GameState::Tricking,
         vec![
-            Card::new(Rank::Jack, Suit::Spades), 
+            Card::new(Rank::Jack, Suit::Spades),
             Card::new(Rank::Queen, Suit::Spades),
             Card::new(Rank::King, Suit::Spades),
             Card::new(Rank::Ace, Suit::Spades),
@@ -244,7 +241,7 @@ fn game_place_trick() {
         TrickStatus::TrickInProgress,
         game.trick(&Player::East, &Card::new(Rank::Two, Suit::Diamonds))
     );
-    
+
     trick_state = TrickState::new(
         GameState::Tricking,
         vec![
@@ -255,7 +252,7 @@ fn game_place_trick() {
         ],
         Player::West,
     );
-    
+
     assert_eq!(
         TrickStatus::TrickFinished(trick_state),
         game.trick(&Player::South, &Card::new(Rank::Two, Suit::Hearts))
@@ -334,10 +331,7 @@ fn game_full_game() {
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
-    assert_eq!(
-        BidStatus::Auction,
-        game.place_bid(&Player::East, Bid::Pass)
-    );
+    assert_eq!(BidStatus::Auction, game.place_bid(&Player::East, Bid::Pass));
     assert_eq!(
         BidStatus::Auction,
         game.place_bid(&Player::South, Bid::Pass)

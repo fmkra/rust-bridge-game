@@ -46,7 +46,7 @@ impl TrickState {
         TrickState {
             game_state,
             cards,
-            taker
+            taker,
         }
     }
 }
@@ -179,22 +179,18 @@ impl Game {
             self.trick_no += 1;
 
             if self.trick_no == 13 {
-                return TrickStatus::TrickFinished(
-                    TrickState::new(
-                        GameState::Finished, 
-                        full_trick, 
-                        self.current_player.clone()
-                    )
-                );
+                return TrickStatus::TrickFinished(TrickState::new(
+                    GameState::Finished,
+                    full_trick,
+                    self.current_player.clone(),
+                ));
             }
-            
-            return TrickStatus::TrickFinished(
-                TrickState::new(
-                    GameState::Tricking, 
-                    full_trick, 
-                    self.current_player.clone()
-                )
-            );
+
+            return TrickStatus::TrickFinished(TrickState::new(
+                GameState::Tricking,
+                full_trick,
+                self.current_player.clone(),
+            ));
         }
 
         TrickStatus::TrickInProgress
