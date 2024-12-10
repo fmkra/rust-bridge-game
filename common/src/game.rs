@@ -12,13 +12,50 @@ pub enum GameState {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum GameError {
+pub enum BidError {
     GameStateMismatch,
     PlayerOutOfTurn,
     WrongBid,
-    WrongTrick,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum BidStatus {
+    Auction,
+    Tricking,
+    Finished,
+    Error(BidError),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum TrickError {
+    GameStateMismatch,
+    PlayerOutOfTurn,
     CardNotFound,
     WrongCardSuit,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct TrickState {
+    pub game_state: GameState,
+    pub cards: Vec<Card>,
+    pub taker: Player,
+}
+
+impl TrickState {
+    pub fn new(game_state: GameState, cards: Vec<Card>, taker: Player) -> TrickState {
+        TrickState {
+            game_state,
+            cards,
+            taker
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum TrickStatus {
+    TrickInProgress,
+    TrickFinished(TrickState),
+    Error(TrickError),
 }
 
 #[derive(Debug)]
@@ -70,12 +107,12 @@ impl Game {
         self.state = GameState::Auction;
     }
 
-    pub fn place_bid(&mut self, player: &Player, bid: Bid) -> Result<GameState, GameError> {
+    pub fn place_bid(&mut self, player: &Player, bid: Bid) -> BidStatus {
         if self.state != GameState::Auction {
-            return Err(GameError::GameStateMismatch);
+            return BidStatus::Error(BidError::GameStateMismatch);
         }
         if self.current_player != *player {
-            return Err(GameError::PlayerOutOfTurn);
+            return BidStatus::Error(BidError::PlayerOutOfTurn);
         }
         match bid {
             Bid::Pass => {
@@ -84,36 +121,38 @@ impl Game {
                     match self.max_bid {
                         Bid::Pass => {
                             self.state = GameState::Finished;
+                            return BidStatus::Finished;
                         }
                         _ => {
                             self.state = GameState::Tricking;
+                            return BidStatus::Tricking;
                         }
                     }
                 }
-                Ok(self.state)
+                return BidStatus::Auction;
             }
             Bid::Play(_, _) => {
                 if bid > self.max_bid {
                     self.max_bid = bid;
                     self.max_bidder = *player;
                     self.current_player = self.current_player.next();
-                    Ok(self.state)
+                    BidStatus::Auction
                 } else {
-                    Err(GameError::WrongBid)
+                    BidStatus::Error(BidError::WrongBid)
                 }
             }
         }
     }
 
-    pub fn trick(&mut self, player: &Player, card: &Card) -> Result<GameState, GameError> {
+    pub fn trick(&mut self, player: &Player, card: &Card) -> TrickStatus {
         if self.state != GameState::Tricking {
-            return Err(GameError::GameStateMismatch);
+            return TrickStatus::Error(TrickError::GameStateMismatch);
         }
         if self.current_player != *player {
-            return Err(GameError::PlayerOutOfTurn);
+            return TrickStatus::Error(TrickError::PlayerOutOfTurn);
         }
         if !self.has_card(player, card) {
-            return Err(GameError::CardNotFound);
+            return TrickStatus::Error(TrickError::CardNotFound);
         }
         let player_usize = player.to_usize();
 
@@ -122,7 +161,7 @@ impl Game {
             && card.suit != self.current_trick[0].suit
             && self.find_suit(player, &self.current_trick[0].suit)
         {
-            return Err(GameError::WrongCardSuit);
+            return TrickStatus::Error(TrickError::WrongCardSuit);
         }
 
         // Either the trick is empty, the suit is right,
@@ -135,15 +174,30 @@ impl Game {
             // This sets the current player as the winner of the trick
             self.set_winner();
             let winner_usize = self.current_player.to_usize();
+            let full_trick = self.current_trick.clone();
             self.collected_cards[winner_usize].append(&mut self.current_trick);
             self.trick_no += 1;
 
             if self.trick_no == 13 {
-                return Ok(GameState::Finished);
+                return TrickStatus::TrickFinished(
+                    TrickState::new(
+                        GameState::Finished, 
+                        full_trick, 
+                        self.current_player.clone()
+                    )
+                );
             }
+            
+            return TrickStatus::TrickFinished(
+                TrickState::new(
+                    GameState::Tricking, 
+                    full_trick, 
+                    self.current_player.clone()
+                )
+            );
         }
 
-        Ok(GameState::Tricking)
+        TrickStatus::TrickInProgress
     }
 
     pub fn get_cards(&self, player: &Player) -> &Vec<Card> {

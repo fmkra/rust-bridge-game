@@ -5,10 +5,16 @@ fn game_trick_max() {
     let mut game1 = Game::new();
     game1.max_bid = Bid::new(2, BidType::Trump(Suit::Spades)).expect("Create bid: 2 Spades");
 
-    game1.current_trick.push(Card::new(Rank::Three, Suit::Spades));
-    game1.current_trick.push(Card::new(Rank::Five, Suit::Diamonds));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Three, Suit::Spades));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Five, Suit::Diamonds));
     game1.current_trick.push(Card::new(Rank::King, Suit::Clubs));
-    game1.current_trick.push(Card::new(Rank::Queen, Suit::Spades));
+    game1
+        .current_trick
+        .push(Card::new(Rank::Queen, Suit::Spades));
 
     assert_eq!(game1.trick_max(), &Card::new(Rank::Queen, Suit::Spades));
 
@@ -17,10 +23,18 @@ fn game_trick_max() {
     let mut game2 = Game::new();
     game2.max_bid = Bid::new(6, BidType::NoTrump).expect("Create bid: 6 No Trump");
 
-    game2.current_trick.push(Card::new(Rank::Two, Suit::Diamonds));
-    game2.current_trick.push(Card::new(Rank::Five, Suit::Hearts));
-    game2.current_trick.push(Card::new(Rank::Queen, Suit::Spades));
-    game2.current_trick.push(Card::new(Rank::Seven, Suit::Clubs));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Two, Suit::Diamonds));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Five, Suit::Hearts));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Queen, Suit::Spades));
+    game2
+        .current_trick
+        .push(Card::new(Rank::Seven, Suit::Clubs));
 
     assert_eq!(game2.trick_max(), &Card::new(Rank::Two, Suit::Diamonds));
 }
@@ -55,7 +69,7 @@ fn game_place_bid() {
     let mut game = Game::new();
 
     assert_eq!(
-        Err(GameError::GameStateMismatch),
+        BidStatus::Error(BidError::GameStateMismatch),
         game.place_bid(
             &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
@@ -65,47 +79,47 @@ fn game_place_bid() {
     game.state = GameState::Auction;
 
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::East,
             Bid::new(3, BidType::Trump(Suit::Diamonds)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::South,
             Bid::new(3, BidType::Trump(Suit::Hearts)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::West,
             Bid::new(3, BidType::Trump(Suit::Spades)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(&Player::North, Bid::new(3, BidType::NoTrump).unwrap())
     );
 
     // Player Auction out of his turn.
     assert_eq!(
-        Err(GameError::PlayerOutOfTurn),
+        BidStatus::Error(BidError::PlayerOutOfTurn),
         game.place_bid(&Player::North, Bid::Pass)
     );
 
     // Player placing a wrong bid - lower than the current max bid.
     assert_eq!(
-        Err(GameError::WrongBid),
+        BidStatus::Error(BidError::WrongBid),
         game.place_bid(
             &Player::East,
             Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()
@@ -113,15 +127,15 @@ fn game_place_bid() {
     );
 
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(&Player::East, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(&Player::South, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        BidStatus::Tricking,
         game.place_bid(&Player::West, Bid::Pass)
     );
 }
@@ -168,25 +182,36 @@ fn game_place_trick() {
     game.player_cards = [cards_north, cards_east, cards_south, cards_west];
 
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::East, &Card::new(Rank::Queen, Suit::Spades))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::South, &Card::new(Rank::King, Suit::Spades))
     );
+
+    let mut trick_state = TrickState::new(
+        GameState::Tricking,
+        vec![
+            Card::new(Rank::Jack, Suit::Spades), 
+            Card::new(Rank::Queen, Suit::Spades),
+            Card::new(Rank::King, Suit::Spades),
+            Card::new(Rank::Ace, Suit::Spades),
+        ],
+        Player::West,
+    );
+
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickFinished(trick_state),
         game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
     );
 
     // Tricks are indexed from 0
     assert_eq!(game.trick_no, 1);
-    assert_eq!(game.current_player, Player::West);
     assert!(game.current_trick.is_empty());
     assert_eq!(
         game.collected_cards[Player::to_usize(&Player::West)],
@@ -199,33 +224,44 @@ fn game_place_trick() {
     );
 
     assert_eq!(
-        Err(GameError::PlayerOutOfTurn),
+        TrickStatus::Error(TrickError::PlayerOutOfTurn),
         game.trick(&Player::North, &Card::new(Rank::Jack, Suit::Spades))
     );
     assert_eq!(
-        Err(GameError::CardNotFound),
+        TrickStatus::Error(TrickError::CardNotFound),
         game.trick(&Player::West, &Card::new(Rank::Two, Suit::Clubs))
     );
 
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::West, &Card::new(Rank::Two, Suit::Spades))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::North, &Card::new(Rank::Two, Suit::Clubs))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::East, &Card::new(Rank::Two, Suit::Diamonds))
     );
+    
+    trick_state = TrickState::new(
+        GameState::Tricking,
+        vec![
+            Card::new(Rank::Two, Suit::Spades),
+            Card::new(Rank::Two, Suit::Clubs),
+            Card::new(Rank::Two, Suit::Diamonds),
+            Card::new(Rank::Two, Suit::Hearts),
+        ],
+        Player::West,
+    );
+    
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickFinished(trick_state),
         game.trick(&Player::South, &Card::new(Rank::Two, Suit::Hearts))
     );
 
     assert_eq!(game.trick_no, 2);
-    assert_eq!(game.current_player, Player::West);
     assert!(game.current_trick.is_empty());
     assert_eq!(
         game.collected_cards[Player::to_usize(&Player::West)],
@@ -264,78 +300,90 @@ fn game_full_game() {
 
     // Auction
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::North,
             Bid::new(2, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::East,
             Bid::new(2, BidType::Trump(Suit::Diamonds)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::South,
             Bid::new(2, BidType::Trump(Suit::Hearts)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::West,
             Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(
             &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(&Player::East, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Auction),
+        BidStatus::Auction,
         game.place_bid(&Player::South, Bid::Pass)
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        BidStatus::Tricking,
         game.place_bid(&Player::West, Bid::Pass)
     );
 
     // Tricking
     for rank_u8 in 2..14 {
         assert_eq!(
-            Ok(GameState::Tricking),
+            TrickStatus::TrickInProgress,
             game.trick(
                 &Player::North,
                 &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs)
             )
         );
         assert_eq!(
-            Ok(GameState::Tricking),
+            TrickStatus::TrickInProgress,
             game.trick(
                 &Player::East,
                 &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds)
             )
         );
         assert_eq!(
-            Ok(GameState::Tricking),
+            TrickStatus::TrickInProgress,
             game.trick(
                 &Player::South,
                 &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Hearts)
             )
         );
+
+        let trick_state = TrickState::new(
+            GameState::Tricking,
+            vec![
+                Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs),
+                Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds),
+                Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Hearts),
+                Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Spades),
+            ],
+            Player::North,
+        );
+
         assert_eq!(
-            Ok(GameState::Tricking),
+            TrickStatus::TrickFinished(trick_state),
             game.trick(
                 &Player::West,
                 &Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Spades)
@@ -343,21 +391,32 @@ fn game_full_game() {
         );
     }
 
-    eprintln!("{:?}", game.player_cards[0]);
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::North, &Card::new(Rank::Ace, Suit::Clubs))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::East, &Card::new(Rank::Ace, Suit::Diamonds))
     );
     assert_eq!(
-        Ok(GameState::Tricking),
+        TrickStatus::TrickInProgress,
         game.trick(&Player::South, &Card::new(Rank::Ace, Suit::Hearts))
     );
+
+    let trick_state = TrickState::new(
+        GameState::Finished,
+        vec![
+            Card::new(Rank::Ace, Suit::Clubs),
+            Card::new(Rank::Ace, Suit::Diamonds),
+            Card::new(Rank::Ace, Suit::Hearts),
+            Card::new(Rank::Ace, Suit::Spades),
+        ],
+        Player::North,
+    );
+
     assert_eq!(
-        Ok(GameState::Finished),
+        TrickStatus::TrickFinished(trick_state),
         game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
     );
 
