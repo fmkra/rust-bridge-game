@@ -226,6 +226,12 @@ impl Game {
                     contract_succeeded,
                 })
             }
+
+            return TrickStatus::TrickFinished(TrickState::new(
+                GameState::Tricking,
+                full_trick,
+                self.current_player.clone(),
+            ));
         }
     }
 
