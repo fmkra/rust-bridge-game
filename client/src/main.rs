@@ -142,7 +142,6 @@ async fn main() {
                     }
                     _ => return,
                 };
-                println!("Join room response {:?}", msg);
                 c.emit(
                     LIST_PLACES_MESSAGE,
                     to_string(&ListPlacesMessage {}).unwrap(),
@@ -207,7 +206,11 @@ async fn main() {
                     }
                     _ => return,
                 };
-                println!("Player positions: {:?}", player_position);
+                println!(
+                    "Player {} selected positions {:?}",
+                    player_position.user.get_username(),
+                    player_position.position
+                );
             }
             .boxed()
         })
@@ -511,7 +514,6 @@ async fn main() {
                 room_id: RoomId::new(&room_id),
             };
 
-            println!("Sending join_room {}", room_id);
             socket
                 .emit(JOIN_ROOM_MESSAGE, to_string(&msg).unwrap())
                 .await
@@ -525,7 +527,6 @@ async fn main() {
                 let position = position_string.trim().parse::<i32>().unwrap();
 
                 if position >= 0 && position < 4 {
-                    println!("Sending select_place");
                     socket
                         .emit(
                             SELECT_PLACE_MESSAGE,
@@ -553,7 +554,6 @@ async fn main() {
                     println!("Selected spectator");
                     break 'room_selection;
                 } else {
-                    println!("Sending leave room");
                     socket
                         .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
                         .await

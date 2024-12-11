@@ -189,6 +189,7 @@ impl Game {
             self.trick_no += 1;
 
             if self.trick_no == 13 {
+                self.state = GameState::Finished;
                 return TrickStatus::TrickFinished(TrickState::new(
                     GameState::Finished,
                     full_trick,

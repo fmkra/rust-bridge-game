@@ -408,7 +408,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if next_state == BidStatus::Finished {
                             // 4 passes
 
-                            s.within(room_handle.clone()).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::None).unwrap();
+                            s.within(room_handle.clone()).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification{result: None}).unwrap();
                         } else {
                             s.within(room_handle).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
                                 player: room_lock.game.current_player,
@@ -461,7 +461,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             s.within(RoomWrapper(room_id.clone())).emit(TRICK_FINISHED_NOTIFICATION, &TrickFinishedNotification::from(status)).unwrap();
 
                             if let Some(game_result) = room_lock.game.evaluate() {
-                                s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &Some(game_result)).unwrap();
+                                s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::from(game_result)).unwrap();
                                 return;
                             }
                         }

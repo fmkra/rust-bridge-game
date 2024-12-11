@@ -305,9 +305,15 @@ pub mod server_notification {
     pub const GAME_FINISHED_NOTIFICATION: &str = "game_finished_notification";
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
-    pub struct GameFinishedNotificationInner {
-        pub result: GameResult,
+    pub struct GameFinishedNotification {
+        pub result: Option<GameResult>,
     }
 
-    pub type GameFinishedNotification = Option<GameFinishedNotificationInner>;
+    impl From<GameResult> for GameFinishedNotification {
+        fn from(result: GameResult) -> Self {
+            GameFinishedNotification {
+                result: Some(result),
+            }
+        }
+    }
 }
