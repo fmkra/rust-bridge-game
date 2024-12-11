@@ -1,32 +1,39 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use common::message::client_message::{MakeBidMessage, MakeTrickMessage, GET_CARDS_MESSAGE, MAKE_BID_MESSAGE, MAKE_TRICK_MESSAGE};
-use common::message::server_notification::{AskBidNotification, AskTrickNotification, AuctionFinishedNotificationInner, TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, TRICK_FINISHED_NOTIFICATION};
-use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse, GET_CARDS_RESPONSE, MAKE_BID_RESPONSE, MAKE_TRICK_RESPONSE};
+use common::message::client_message::{
+    MakeBidMessage, MakeTrickMessage, GET_CARDS_MESSAGE, MAKE_BID_MESSAGE, MAKE_TRICK_MESSAGE,
+};
+use common::message::server_notification::{
+    AskBidNotification, AskTrickNotification, AuctionFinishedNotificationInner,
+    GameFinishedNotification, TrickFinishedNotification, ASK_BID_NOTIFICATION,
+    ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, GAME_FINISHED_NOTIFICATION,
+    TRICK_FINISHED_NOTIFICATION,
+};
+use common::message::server_response::{
+    GetCardsResponse, MakeBidResponse, MakeTrickResponse, GET_CARDS_RESPONSE, MAKE_BID_RESPONSE,
+    MAKE_TRICK_RESPONSE,
+};
+use common::message::{
+    client_message::{
+        JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage, JOIN_ROOM_MESSAGE,
+        LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE,
+        REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+    },
+    server_notification::{
+        GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
+        SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
+        LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+    },
+    server_response::{
+        JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse, LoginResponse,
+        RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE,
+        LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, REGISTER_ROOM_RESPONSE,
+        SELECT_PLACE_RESPONSE,
+    },
+};
 use common::user::User;
 use common::{Bid, BidError, BidStatus, GameState, TrickError, TrickStatus};
-use common::{
-    message::{
-        client_message::{
-            JoinRoomMessage, LoginMessage, RegisterRoomMessage, SelectPlaceMessage,
-            JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE, LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE,
-            LOGIN_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
-        },
-        server_notification::{
-            GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
-            SelectPlaceNotification, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
-            LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
-        },
-        server_response::{
-            JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
-            LoginResponse, RegisterRoomResponse, SelectPlaceResponse, JOIN_ROOM_RESPONSE,
-            LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE, LIST_ROOMS_RESPONSE, LOGIN_RESPONSE,
-            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
-        },
-    },
-    Player,
-};
 use socketioxide::{
     adapter::Room as SRoom,
     extract::{Data, SocketRef, State},
@@ -355,7 +362,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let msg = GetCardsResponse::Ok { cards, position };
             s.emit(GET_CARDS_RESPONSE, &msg).unwrap();
         });
-        
+
         s.on(MAKE_BID_MESSAGE, |s: SocketRef, Data::<MakeBidMessage>(data)| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
                 s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::Unauthenticated).unwrap();
@@ -367,7 +374,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let mut room_lock = room.write().await;
-            
+
             let Some(player) = room_lock.find_player_position(&client_data.user) else {
                 s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::SpectatorNotAllowed).unwrap();
                 return;
@@ -398,10 +405,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             max_bid: room_lock.game.max_bid,
                         })).unwrap();
 
-                        s.within(room_handle).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
-                            player: room_lock.game.current_player,
-                            cards: room_lock.game.current_trick.clone(),
-                        }).unwrap();
+                        if next_state == BidStatus::Finished {
+                            // 4 passes
+
+                            s.within(room_handle.clone()).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::None).unwrap();
+                        } else {
+                            s.within(room_handle).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
+                                player: room_lock.game.current_player,
+                                cards: room_lock.game.current_trick.clone(),
+                            }).unwrap();
+                        }
                     }
                 },
             }
@@ -418,7 +431,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let mut room_lock = room.write().await;
-            
+
             let Some(player) = room_lock.find_player_position(&client_data.user) else {
                 s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::SpectatorNotAllowed).unwrap();
                 return;
@@ -446,6 +459,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match status {
                         TrickStatus::TrickFinished(status) => {
                             s.within(RoomWrapper(room_id.clone())).emit(TRICK_FINISHED_NOTIFICATION, &TrickFinishedNotification::from(status)).unwrap();
+
+                            if let Some(game_result) = room_lock.game.evaluate() {
+                                s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &Some(game_result)).unwrap();
+                                return;
+                            }
                         }
                         _ => {}
                     }
@@ -455,7 +473,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         cards: room_lock.game.current_trick.clone(),
                     }).unwrap();
                 }
-            }    
+            }
         });
 
         // s.on(

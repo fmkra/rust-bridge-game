@@ -215,7 +215,7 @@ pub mod server_response {
 }
 
 pub mod server_notification {
-    use crate::{Bid, Card, Player, TrickState};
+    use crate::{Bid, Card, GameResult, Player, TrickState};
 
     use super::*;
 
@@ -301,4 +301,13 @@ pub mod server_notification {
             }
         }
     }
+
+    pub const GAME_FINISHED_NOTIFICATION: &str = "game_finished_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct GameFinishedNotificationInner {
+        pub result: GameResult,
+    }
+
+    pub type GameFinishedNotification = Option<GameFinishedNotificationInner>;
 }

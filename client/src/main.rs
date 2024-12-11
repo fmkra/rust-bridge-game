@@ -21,11 +21,12 @@ use common::{
         },
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
-            AuctionFinishedNotificationInner, GameStartedNotification, JoinRoomNotification,
-            LeaveRoomNotification, SelectPlaceNotification, TrickFinishedNotification,
-            ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION,
-            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
-            SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
+            AuctionFinishedNotificationInner, GameFinishedNotification, GameStartedNotification,
+            JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
+            TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION,
+            AUCTION_FINISHED_NOTIFICATION, GAME_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION,
+            JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+            TRICK_FINISHED_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
@@ -54,8 +55,15 @@ async fn main() {
     let ask_trick_tx_1 = ask_trick_tx.clone();
     let ask_trick_tx_2 = ask_trick_tx.clone();
 
-    let (card_list_tx, mut card_list_rx) = mpsc::channel(1);
-    let card_list_tx_1 = card_list_tx.clone();
+    let selected_card = Arc::new(Mutex::new(None));
+    let selected_card_clone = selected_card.clone();
+
+    let card_list = Arc::new(Mutex::new(None));
+    let card_list_clone = card_list.clone();
+    let card_list_clone_2 = card_list.clone();
+
+    let card_list_notify = Arc::new(Notify::new());
+    let card_list_notify_clone = card_list_notify.clone();
 
     let auction_result = Arc::new(Mutex::new(None));
     let auction_result_clone = auction_result.clone();
@@ -258,7 +266,8 @@ async fn main() {
             .boxed()
         })
         .on(GET_CARDS_RESPONSE, move |payload, _| {
-            let card_list_tx = card_list_tx_1.clone();
+            let card_list = card_list_clone.clone();
+            let card_list_notify = card_list_notify_clone.clone();
             let my_position_tx = my_position_tx_1.clone();
             async move {
                 let msg = match payload {
@@ -276,7 +285,8 @@ async fn main() {
                         return;
                     }
                 };
-                card_list_tx.send(cards).await.unwrap();
+                *card_list.lock().await = Some(cards);
+                card_list_notify.notify_one();
             }
             .boxed()
         })
@@ -344,6 +354,8 @@ async fn main() {
         })
         .on(MAKE_TRICK_RESPONSE, move |payload, _| {
             let ask_trick_tx = ask_trick_tx_2.clone();
+            let card_list = card_list_clone_2.clone();
+            let selected_card_clone = selected_card_clone.clone();
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -355,6 +367,15 @@ async fn main() {
                     MakeTrickResponse::InvalidCard => {
                         println!("Invalid card");
                         ask_trick_tx.send(None).await.unwrap();
+                    }
+                    MakeTrickResponse::Ok => {
+                        let card = selected_card_clone.lock().await.clone().unwrap();
+                        card_list
+                            .lock()
+                            .await
+                            .as_mut()
+                            .unwrap()
+                            .retain(|c| c != &card);
                     }
                     m => {
                         println!("trick response {:?}", m);
@@ -381,6 +402,18 @@ async fn main() {
                         .join(" "),
                     msg.taker
                 );
+            }
+            .boxed()
+        })
+        .on(GAME_FINISHED_NOTIFICATION, move |payload, _| {
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<GameFinishedNotification>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                println!("Game finished {:?}", msg);
             }
             .boxed()
         })
@@ -531,13 +564,17 @@ async fn main() {
             }
         }
 
-        let cards = card_list_rx.recv().await.unwrap();
+        card_list_notify.notified().await;
 
         println!("Starting game...");
 
         println!(
             "Your cards: {}",
-            cards
+            card_list
+                .lock()
+                .await
+                .clone()
+                .unwrap()
                 .iter()
                 .map(Card::to_string)
                 .collect::<Vec<String>>()
@@ -636,7 +673,17 @@ async fn main() {
 
         let mut persistent_trick = None;
 
-        println!("Auction result is {:?}", auction_result);
+        match auction_result.max_bid {
+            Bid::Play(max_bid, typ) => {
+                println!(
+                    "Auction was won by {:?} with {} {:?}",
+                    auction_result.winner, max_bid, typ
+                );
+            }
+            Bid::Pass => {
+                println!("Auction was not won");
+            }
+        }
 
         loop {
             let trick = ask_trick_rx.recv().await.unwrap();
@@ -654,7 +701,11 @@ async fn main() {
             loop {
                 println!(
                     "Your cards: {}",
-                    cards
+                    card_list
+                        .lock()
+                        .await
+                        .clone()
+                        .unwrap()
                         .iter()
                         .map(Card::to_string)
                         .collect::<Vec<String>>()
@@ -709,6 +760,8 @@ async fn main() {
                 };
 
                 let card = Card::new(rank, suit);
+
+                selected_card.lock().await.replace(card);
 
                 println!("Playing card {}", card.to_string());
                 socket

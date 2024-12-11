@@ -2,6 +2,7 @@ use crate::bid::Bid;
 use crate::card::{Card, Rank, Suit};
 use crate::player::Player;
 use rand::prelude::SliceRandom;
+use serde::{Deserialize, Serialize};
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum GameState {
@@ -58,7 +59,7 @@ pub enum TrickStatus {
     Error(TrickError),
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct GameResult {
     pub bidded: Bid,
     pub won_tricks: usize,
