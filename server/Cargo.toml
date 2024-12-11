@@ -4,4 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum = "0.7"
 common = { path = "../common" }
+socketioxide = { version = "0.15.1", features = ["extensions", "state"] }
+futures = "0.3"
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1.0.215", features = ["derive"] }
+tower-http = { version = "0.5.0", features = ["cors", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower = { version = "0.5.0", default-features = false }
