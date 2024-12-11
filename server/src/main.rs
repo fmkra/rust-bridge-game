@@ -199,13 +199,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 client_data.room = None;
                 s.extensions.insert(client_data.clone());
 
-                s.emit(LEAVE_ROOM_RESPONSE, &LeaveRoomResponse::Ok).unwrap();
+                s.emit(LEAVE_ROOM_RESPONSE, &LeaveRoomResponse::Ok).ok();
             }
 
             info!("User \"{}\" left room \"{}\"", client_data.user.get_username(), room_id.as_str());
 
-            s.to(RoomWrapper(room_id)).emit(LEAVE_ROOM_NOTIFICATION, &LeaveRoomNotification{user: client_data.user}).unwrap();
-            s.leave_all().unwrap();
+            s.to(RoomWrapper(room_id)).emit(LEAVE_ROOM_NOTIFICATION, &LeaveRoomNotification{user: client_data.user}).ok();
+            s.leave_all().ok();
         };
 
         s.on(LEAVE_ROOM_MESSAGE, move |s: SocketRef| async move {
