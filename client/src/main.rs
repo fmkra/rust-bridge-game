@@ -1,4 +1,11 @@
-use std::{io::Write, sync::Arc, time::Duration};
+use std::{
+    io::Write,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use futures_util::FutureExt;
 use rust_socketio::{asynchronous::ClientBuilder, Payload};
@@ -54,6 +61,7 @@ async fn main() {
     let (ask_trick_tx, mut ask_trick_rx) = mpsc::channel(1);
     let ask_trick_tx_1 = ask_trick_tx.clone();
     let ask_trick_tx_2 = ask_trick_tx.clone();
+    let ask_trick_tx_3 = ask_trick_tx.clone();
 
     let selected_card = Arc::new(Mutex::new(None));
     let selected_card_clone = selected_card.clone();
@@ -70,6 +78,9 @@ async fn main() {
 
     let register_room_notifier = Arc::new(Notify::new());
     let register_room_notifier_clone = register_room_notifier.clone();
+
+    let game_finished = Arc::new(AtomicBool::new(false));
+    let game_finished_clone = game_finished.clone();
 
     let (select_username_tx, mut select_username_rx) = mpsc::channel(1);
 
@@ -136,7 +147,7 @@ async fn main() {
         })
         .on(JOIN_ROOM_RESPONSE, move |payload, c| {
             async move {
-                let msg = match payload {
+                let _msg = match payload {
                     Payload::Text(text) => {
                         serde_json::from_value::<LoginResponse>(text[0].clone()).unwrap()
                     }
@@ -428,6 +439,8 @@ async fn main() {
             .boxed()
         })
         .on(GAME_FINISHED_NOTIFICATION, move |payload, _| {
+            let game_finished_clone = game_finished_clone.clone();
+            let ask_trick_tx = ask_trick_tx_3.clone();
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -436,6 +449,8 @@ async fn main() {
                     _ => return,
                 };
                 println!("Game finished {:?}", msg);
+                game_finished_clone.fetch_or(true, std::sync::atomic::Ordering::Relaxed);
+                ask_trick_tx.send(None).await.unwrap();
             }
             .boxed()
         })
@@ -627,11 +642,11 @@ async fn main() {
                 println!("[p] - Pass");
                 println!("[value] [suit] - Bid");
                 println!("Suits are:");
-                println!("0 - Clubs");
-                println!("1 - Diamonds");
-                println!("2 - Hearts");
-                println!("3 - Spades");
-                println!("4 - No Trump");
+                println!("[C]lubs");
+                println!("[D]iamonds");
+                println!("[H]earts");
+                println!("[S]pades");
+                println!("[N]o Trump");
 
                 let mut bid = String::new();
                 std::io::stdout().flush().unwrap();
@@ -656,11 +671,11 @@ async fn main() {
                     continue;
                 };
                 let trump = match trump {
-                    "0" => BidType::Trump(Suit::Clubs),
-                    "1" => BidType::Trump(Suit::Diamonds),
-                    "2" => BidType::Trump(Suit::Hearts),
-                    "3" => BidType::Trump(Suit::Spades),
-                    "4" => BidType::NoTrump,
+                    "C" => BidType::Trump(Suit::Clubs),
+                    "D" => BidType::Trump(Suit::Diamonds),
+                    "H" => BidType::Trump(Suit::Hearts),
+                    "S" => BidType::Trump(Suit::Spades),
+                    "N" => BidType::NoTrump,
                     _ => {
                         println!("Invalid suit");
                         continue;
@@ -706,6 +721,9 @@ async fn main() {
 
         loop {
             let trick = ask_trick_rx.recv().await.unwrap();
+            if game_finished.load(Ordering::Relaxed) {
+                break 'lobby_loop;
+            }
             if let Some(t) = trick {
                 persistent_trick = Some(t);
             }
@@ -745,10 +763,10 @@ async fn main() {
 
                 println!("[rank] [suit]");
                 println!("Suits are:");
-                println!("0 - Clubs");
-                println!("1 - Diamonds");
-                println!("2 - Hearts");
-                println!("3 - Spades");
+                println!("[C]lubs");
+                println!("[D]iamonds");
+                println!("[H]earts");
+                println!("[S]pades");
                 println!("Ranks are:");
                 println!("2-10 | J | Q | K | A");
 
@@ -768,10 +786,10 @@ async fn main() {
                 };
 
                 let suit = match suit {
-                    "0" => Suit::Clubs,
-                    "1" => Suit::Diamonds,
-                    "2" => Suit::Hearts,
-                    "3" => Suit::Spades,
+                    "C" => Suit::Clubs,
+                    "D" => Suit::Diamonds,
+                    "H" => Suit::Hearts,
+                    "S" => Suit::Spades,
                     _ => {
                         println!("Invalid suit");
                         continue;
@@ -791,37 +809,14 @@ async fn main() {
                     .await
                     .unwrap();
                 break;
-                // if let Ok(card) = Card::from(
-                //     Suit::from(card.chars().nth(0).unwrap()),
-                //     card[1..].parse::<u8>().unwrap(),
-                // ) {
-                //     break;
-                // } else {
-                //     println!("Invalid card");
-                // }
             }
         }
-
-        socket
-            .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
-            .await
-            .unwrap();
-
-        // println!("=waiting on lock=");
-        // my_position_ready.notified().await;
-        // println!("=lock released=");
-        // if msg.player == my_position.lock().await.unwrap() {
-        //     println!(
-        //         "It's your turn\nTrick is: {}",
-        //         msg.trick_cards
-        //             .iter()
-        //             .map(card::Card::to_string)
-        //             .collect::<Vec<String>>()
-        //             .join(" ")
-        //     );
-        //     turn_notifier.notify_one();
-        // }
     }
+
+    socket
+        .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+        .await
+        .unwrap();
 
     socket.disconnect().await.expect("Disconnect failed");
 }
