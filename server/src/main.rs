@@ -6,9 +6,9 @@ use common::message::client_message::{
 };
 use common::message::server_notification::{
     AskBidNotification, AskTrickNotification, AuctionFinishedNotificationInner,
-    GameFinishedNotification, TrickFinishedNotification, ASK_BID_NOTIFICATION,
-    ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, GAME_FINISHED_NOTIFICATION,
-    TRICK_FINISHED_NOTIFICATION,
+    DummyCardsNotification, GameFinishedNotification, TrickFinishedNotification,
+    ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION,
+    DUMMY_CARDS_NOTIFICATION, GAME_FINISHED_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
 };
 use common::message::server_response::{
     GetCardsResponse, MakeBidResponse, MakeTrickResponse, GET_CARDS_RESPONSE, MAKE_BID_RESPONSE,
@@ -463,6 +463,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if let Some(game_result) = room_lock.game.evaluate() {
                                 s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::from(game_result)).unwrap();
                                 return;
+                            }
+                        },
+                        TrickStatus::TrickInProgress => {
+                            if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
+                                s.within(RoomWrapper(room_id.clone())).emit(DUMMY_CARDS_NOTIFICATION, &DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone())).unwrap();
                             }
                         }
                         _ => {}

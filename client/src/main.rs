@@ -21,12 +21,12 @@ use common::{
         },
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
-            AuctionFinishedNotificationInner, GameFinishedNotification, GameStartedNotification,
-            JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
-            TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION,
-            AUCTION_FINISHED_NOTIFICATION, GAME_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION,
-            JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
-            TRICK_FINISHED_NOTIFICATION,
+            AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification,
+            GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
+            SelectPlaceNotification, TrickFinishedNotification, ASK_BID_NOTIFICATION,
+            ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, DUMMY_CARDS_NOTIFICATION,
+            GAME_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
+            LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
@@ -339,6 +339,25 @@ async fn main() {
                 let msg = msg.expect("No winner"); // TODO: 4 passes
                 *auction_result.lock().await = Some(msg);
                 ask_bid_tx.send(None).await.unwrap();
+            }
+            .boxed()
+        })
+        .on(DUMMY_CARDS_NOTIFICATION, move |payload, _| {
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<DummyCardsNotification>(text[0].clone()).unwrap()
+                    }
+                    _ => return,
+                };
+                println!(
+                    "Dummy cards {}",
+                    msg.cards
+                        .iter()
+                        .map(Card::to_string)
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
             }
             .boxed()
         })

@@ -316,4 +316,17 @@ pub mod server_notification {
             }
         }
     }
+
+    pub const DUMMY_CARDS_NOTIFICATION: &str = "dummy_cards_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct DummyCardsNotification {
+        pub cards: Vec<Card>,
+    }
+
+    impl From<Vec<Card>> for DummyCardsNotification {
+        fn from(cards: Vec<Card>) -> Self {
+            DummyCardsNotification { cards }
+        }
+    }
 }
