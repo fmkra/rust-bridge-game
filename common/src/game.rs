@@ -58,6 +58,13 @@ pub enum TrickStatus {
     Error(TrickError),
 }
 
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct GameResult {
+    pub bidded: Bid,
+    pub won_tricks: usize,
+    pub contract_succeeded: bool,
+}
+
 #[derive(Debug)]
 pub struct Game {
     pub state: GameState,
@@ -196,6 +203,40 @@ impl Game {
         }
 
         TrickStatus::TrickInProgress
+    }
+
+    pub fn evaluate(&self) -> Option<GameResult> {
+        if self.state != GameState::Finished {
+            return None;
+        }
+        let bidded = self.max_bid.clone();
+        match bidded {
+            Bid::Pass => None,
+            Bid::Play(val, _) => {
+                let max_bidder = self.max_bidder.to_usize();
+                let dummy = self.max_bidder.next().next().to_usize();
+                let won_tricks: usize = self.collected_cards[max_bidder].len() / 4
+                    + self.collected_cards[dummy].len() / 4;
+                let contract_succeeded: bool = (won_tricks - 6) >= val.into();
+                Some(GameResult {
+                    bidded,
+                    won_tricks,
+                    contract_succeeded,
+                })
+            }
+        }
+    }
+
+    pub fn get_dummy(&self) -> Option<&Vec<Card>> {
+        if self.state != GameState::Tricking {
+            return None;
+        }
+        if self.trick_no == 0 && self.current_trick.len() == 0 {
+            // No cards were given, the dummy doesn't reveal its' cards yet.
+            return None;
+        }
+        let dummy_usize = self.max_bidder.next().next().to_usize();
+        return Some(&self.player_cards[dummy_usize]);
     }
 
     pub fn get_cards(&self, player: &Player) -> &Vec<Card> {
