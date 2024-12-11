@@ -8,5 +8,7 @@ pub mod user;
 
 pub use bid::{Bid, BidType};
 pub use card::{Card, Rank, Suit};
-pub use game::{Game, GameError, GameState};
+pub use game::{
+    BidError, BidStatus, Game, GameResult, GameState, TrickError, TrickState, TrickStatus,
+};
 pub use player::Player;
