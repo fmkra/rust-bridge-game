@@ -4,20 +4,14 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Duration,
 };
 
 use futures_util::FutureExt;
 use rust_socketio::{asynchronous::ClientBuilder, Payload};
-use serde::{Deserialize, Serialize};
 use serde_json::to_string;
-use tokio::{
-    sync::{mpsc, Mutex, Notify},
-    time::sleep,
-};
+use tokio::sync::{mpsc, Mutex, Notify};
 
 use common::{
-    card,
     message::{
         client_message::{
             GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
@@ -28,12 +22,12 @@ use common::{
         },
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
-            AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification,
-            GameStartedNotification, JoinRoomNotification, LeaveRoomNotification,
-            SelectPlaceNotification, TrickFinishedNotification, ASK_BID_NOTIFICATION,
-            ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, DUMMY_CARDS_NOTIFICATION,
-            GAME_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION,
-            LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
+            DummyCardsNotification, GameFinishedNotification, GameStartedNotification,
+            JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
+            TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION,
+            AUCTION_FINISHED_NOTIFICATION, DUMMY_CARDS_NOTIFICATION, GAME_FINISHED_NOTIFICATION,
+            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
+            SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
