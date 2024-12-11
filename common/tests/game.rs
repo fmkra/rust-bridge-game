@@ -126,7 +126,10 @@ fn game_place_bid() {
         )
     );
 
-    assert_eq!(BidStatus::Auction, game.place_bid(&Player::East, Bid::Pass));
+    assert_eq!(
+        BidStatus::Auction, 
+        game.place_bid(&Player::East, Bid::Pass)
+    );
     assert_eq!(
         BidStatus::Auction,
         game.place_bid(&Player::South, Bid::Pass)
@@ -134,6 +137,11 @@ fn game_place_bid() {
     assert_eq!(
         BidStatus::Tricking,
         game.place_bid(&Player::West, Bid::Pass)
+    );
+
+    assert_eq!(
+        Player::East,
+        game.current_player
     );
 }
 
@@ -321,24 +329,20 @@ fn game_full_game() {
         BidStatus::Auction,
         game.place_bid(
             &Player::West,
-            Bid::new(2, BidType::Trump(Suit::Spades)).unwrap()
-        )
-    );
-    assert_eq!(
-        BidStatus::Auction,
-        game.place_bid(
-            &Player::North,
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
-    assert_eq!(BidStatus::Auction, game.place_bid(&Player::East, Bid::Pass));
+    assert_eq!(
+        BidStatus::Auction, 
+        game.place_bid(&Player::North, Bid::Pass)
+    );
     assert_eq!(
         BidStatus::Auction,
-        game.place_bid(&Player::South, Bid::Pass)
+        game.place_bid(&Player::East, Bid::Pass)
     );
     assert_eq!(
         BidStatus::Tricking,
-        game.place_bid(&Player::West, Bid::Pass)
+        game.place_bid(&Player::South, Bid::Pass)
     );
 
     // Tricking

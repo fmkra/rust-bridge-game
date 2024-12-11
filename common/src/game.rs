@@ -125,6 +125,8 @@ impl Game {
                         }
                         _ => {
                             self.state = GameState::Tricking;
+                            // Calling next again, as the first player is next of max_bidder
+                            self.current_player = self.current_player.next();
                             return BidStatus::Tricking;
                         }
                     }
