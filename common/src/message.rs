@@ -215,7 +215,7 @@ pub mod server_response {
 }
 
 pub mod server_notification {
-    use crate::{Bid, Card, Player};
+    use crate::{Bid, Card, Player, TrickState};
 
     use super::*;
 
@@ -283,5 +283,22 @@ pub mod server_notification {
     pub struct AskTrickNotification {
         pub player: Player,
         pub cards: Vec<Card>,
+    }
+
+    pub const TRICK_FINISHED_NOTIFICATION: &str = "trick_finished_notification";
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct TrickFinishedNotification {
+        pub taker: Player,
+        pub cards: Vec<Card>,
+    }
+
+    impl From<TrickState> for TrickFinishedNotification {
+        fn from(trick: TrickState) -> Self {
+            TrickFinishedNotification {
+                taker: trick.taker,
+                cards: trick.cards,
+            }
+        }
     }
 }

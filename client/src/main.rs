@@ -22,9 +22,10 @@ use common::{
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
             AuctionFinishedNotificationInner, GameStartedNotification, JoinRoomNotification,
-            LeaveRoomNotification, SelectPlaceNotification, ASK_BID_NOTIFICATION,
-            ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, GAME_STARTED_NOTIFICATION,
-            JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION, SELECT_PLACE_NOTIFICATION,
+            LeaveRoomNotification, SelectPlaceNotification, TrickFinishedNotification,
+            ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION,
+            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
+            SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
         },
         server_response::{
             GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
@@ -38,12 +39,6 @@ use common::{
     user::User,
     Bid, BidType, Card, Player, Rank, Suit,
 };
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct WelcomeMessage {
-    username: String,
-    // some_welcome_value: i32,
-}
 
 #[tokio::main]
 async fn main() {
@@ -365,6 +360,27 @@ async fn main() {
                         println!("trick response {:?}", m);
                     }
                 }
+            }
+            .boxed()
+        })
+        .on(TRICK_FINISHED_NOTIFICATION, move |payload, _| {
+            async move {
+                let msg = match payload {
+                    Payload::Text(text) => {
+                        serde_json::from_value::<TrickFinishedNotification>(text[0].clone())
+                            .unwrap()
+                    }
+                    _ => return,
+                };
+                println!(
+                    "Trick {} taken by {:?}",
+                    msg.cards
+                        .iter()
+                        .map(Card::to_string)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    msg.taker
+                );
             }
             .boxed()
         })

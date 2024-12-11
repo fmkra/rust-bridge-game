@@ -2,10 +2,10 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use common::message::client_message::{MakeBidMessage, MakeTrickMessage, GET_CARDS_MESSAGE, MAKE_BID_MESSAGE, MAKE_TRICK_MESSAGE};
-use common::message::server_notification::{AskBidNotification, AskTrickNotification, AuctionFinishedNotificationInner, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION};
+use common::message::server_notification::{AskBidNotification, AskTrickNotification, AuctionFinishedNotificationInner, TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION, AUCTION_FINISHED_NOTIFICATION, TRICK_FINISHED_NOTIFICATION};
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse, GET_CARDS_RESPONSE, MAKE_BID_RESPONSE, MAKE_TRICK_RESPONSE};
 use common::user::User;
-use common::{Bid, GameError, GameState};
+use common::{Bid, BidError, BidStatus, GameState, TrickError, TrickStatus};
 use common::{
     message::{
         client_message::{
@@ -374,20 +374,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             match room_lock.game.place_bid(&player, data.bid) {
-                Err(GameError::GameStateMismatch) => {
+                BidStatus::Error(BidError::GameStateMismatch) => {
                     s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::AuctionNotInProcess).unwrap();
                 },
-                Err(GameError::PlayerOutOfTurn) => {
+                BidStatus::Error(BidError::PlayerOutOfTurn) => {
                     s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::NotYourTurn).unwrap();
                 },
-                Err(GameError::WrongBid) => {
+                BidStatus::Error(BidError::WrongBid) => {
                     s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::InvalidBid).unwrap();
                 },
-                Ok(next_state) => {
+                next_state => {
                     s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::Ok).unwrap();
 
                     let room_handle = RoomWrapper(room_lock.info.id.clone());
-                    if next_state == GameState::Auction {
+                    if next_state == BidStatus::Auction {
                         s.within(room_handle).emit(ASK_BID_NOTIFICATION, &AskBidNotification {
                             player: room_lock.game.current_player,
                             max_bid: room_lock.game.max_bid,
@@ -404,7 +404,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }).unwrap();
                     }
                 },
-                _ => {}
             }
         });
 
@@ -428,32 +427,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let room_id = room_lock.info.id.clone();
 
             match room_lock.game.trick(&player, &data.card) {
-                Err(GameError::GameStateMismatch) => {
+                TrickStatus::Error(TrickError::GameStateMismatch) => {
                     s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::TrickNotInProcess).unwrap();
                 },
-                Err(GameError::PlayerOutOfTurn) => {
+                TrickStatus::Error(TrickError::PlayerOutOfTurn) => {
                     s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::NotYourTurn).unwrap();
                 },
-                Err(GameError::CardNotFound) => {
+                TrickStatus::Error(TrickError::CardNotFound) => {
                     s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::InvalidCard).unwrap();
                 },
-                Err(GameError::WrongCardSuit) => {
+                TrickStatus::Error(TrickError::WrongCardSuit) => {
                     s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::InvalidCard).unwrap();
                     // TODO: different response
                 },
-                Ok(next_state) => {
+                status => {
                     s.emit(MAKE_TRICK_RESPONSE, &MakeTrickResponse::Ok).unwrap();
 
-                    if next_state == GameState::Tricking {
-                        s.within(RoomWrapper(room_id)).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
-                            player: room_lock.game.current_player,
-                            cards: room_lock.game.current_trick.clone(),
-                        }).unwrap();
-                    } else {
-                        println!("Trick finished");
+                    match status {
+                        TrickStatus::TrickFinished(status) => {
+                            s.within(RoomWrapper(room_id.clone())).emit(TRICK_FINISHED_NOTIFICATION, &TrickFinishedNotification::from(status)).unwrap();
+                        }
+                        _ => {}
                     }
+
+                    s.within(RoomWrapper(room_id)).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
+                        player: room_lock.game.current_player,
+                        cards: room_lock.game.current_trick.clone(),
+                    }).unwrap();
                 }
-                _ => {}
             }    
         });
 
