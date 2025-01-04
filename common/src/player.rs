@@ -18,6 +18,20 @@ impl Player {
         Player::from_usize((self.to_usize() + num_skips) % 4).unwrap()
     }
 
+    pub fn get_partner(&self) -> Player {
+        self.skip(2)
+    }
+
+    pub fn is_opponent(&self, player: Player) -> bool {
+        let p1 = self.skip(1);
+        let p2 = self.skip(3);
+
+        if player == p1 || player == p2 {
+            return true;
+        }
+        false
+    }
+
     pub fn from_u8(value: u8) -> Option<Player> {
         match value {
             0 => Some(Player::North),

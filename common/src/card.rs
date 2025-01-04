@@ -51,6 +51,15 @@ pub enum Suit {
     Spades,
 }
 
+impl Suit {
+    pub fn is_major(&self) -> bool {
+        if *self == Suit::Hearts || *self == Suit::Spades {
+            return true;
+        }
+        false
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Card {
     pub rank: Rank,
@@ -64,14 +73,14 @@ impl Card {
 
     pub fn compare_with_trump(&self, other: &Card, bid_type: &BidType) -> Option<Ordering> {
         match bid_type {
-            BidType::NoTrump => self.partial_cmp(&other),
+            BidType::NoTrump => self.partial_cmp(other),
             BidType::Trump(trump_suit) => {
                 if self.suit == *trump_suit && other.suit != *trump_suit {
                     Some(Ordering::Greater)
                 } else if self.suit != *trump_suit && other.suit == *trump_suit {
                     Some(Ordering::Less)
                 } else {
-                    self.partial_cmp(&other)
+                    self.partial_cmp(other)
                 }
             }
         }

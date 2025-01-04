@@ -11,11 +11,13 @@ pub enum BidType {
 pub enum Bid {
     Pass,
     Play(u8, BidType),
+    Double,
+    Redouble,
 }
 
 impl Bid {
     pub fn new(number: u8, typ: BidType) -> Option<Bid> {
-        if number >= 1 && number <= 7 {
+        if (1..=7).contains(&number) {
             Some(Bid::Play(number, typ))
         } else {
             None
@@ -26,15 +28,30 @@ impl Bid {
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
+            // Pass
             (Bid::Pass, Bid::Pass) => Ordering::Equal,
-            (Bid::Pass, Bid::Play(_, _)) => Ordering::Less,
-            (Bid::Play(_, _), Bid::Pass) => Ordering::Greater,
+            (Bid::Pass, _) => Ordering::Less,
+            (_, Bid::Pass) => Ordering::Greater,
+
+            // Play
             (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
-                match self_number.cmp(&other_number) {
-                    Ordering::Equal => self_type.cmp(&other_type),
+                match self_number.cmp(other_number) {
+                    Ordering::Equal => self_type.cmp(other_type),
                     other => other,
                 }
             }
+            (Bid::Play(_, _), Bid::Double) => Ordering::Less,
+            (Bid::Play(_, _), Bid::Redouble) => Ordering::Less,
+            (Bid::Double, Bid::Play(_, _)) => Ordering::Greater,
+            (Bid::Redouble, Bid::Play(_, _)) => Ordering::Greater,
+
+            // Double
+            (Bid::Double, Bid::Double) => Ordering::Equal,
+            (Bid::Double, Bid::Redouble) => Ordering::Less,
+
+            //Redouble
+            (Bid::Redouble, Bid::Double) => Ordering::Greater,
+            (Bid::Redouble, Bid::Redouble) => Ordering::Equal,
         }
     }
 }
@@ -50,8 +67,8 @@ impl TryInto<BidType> for Bid {
 
     fn try_into(self) -> Result<BidType, Self::Error> {
         match self {
-            Bid::Pass => Err(()),
             Bid::Play(_, typ) => Ok(typ),
+            _ => Err(()),
         }
     }
 }
