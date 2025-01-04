@@ -84,6 +84,7 @@ pub struct Game {
     pub max_bid: Bid,
     pub game_value: GameValue,
     pub max_bidder: Player,
+    pub first_bidder: Player,
     pub current_player: Player,
     pub player_cards: [Vec<Card>; 4],
     pub collected_cards: [Vec<Card>; 4],
@@ -108,6 +109,7 @@ impl Game {
             max_bid: Bid::Pass,
             game_value: GameValue::Regular,
             max_bidder: Player::North,
+            first_bidder: Player::North,
             player_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
             collected_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
             points: [0, 0, 0, 0],
@@ -250,7 +252,8 @@ impl Game {
                     self.trick_no = 0;
                     self.state = GameState::Auction;
                     self.game_value = GameValue::Regular;
-                    self.current_player = Player::North;
+                    self.first_bidder = self.first_bidder.next();
+                    self.current_player = self.first_bidder;
                 }
               
                 return TrickStatus::TrickFinished(TrickState::new(
@@ -345,7 +348,7 @@ impl Game {
             };
     
             self.points[bidder_usize] += overtrick_points;
-    
+            
             // Mark the pair as vulnerable if they won the game
             self.vulnerable[bidder_usize] = true;
             self.vulnerable[partner_usize] = true;

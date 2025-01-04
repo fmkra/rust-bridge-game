@@ -39,6 +39,8 @@ impl Bid {
         match self {
             Self::Pass => "Pass".into(),
             Self::Play(number, typ) => format!("{} {}", number, typ.to_str()),
+            Self::Double => "Double".into(),
+            Self::Redouble => "Redouble".into(),
         }
     }
 }

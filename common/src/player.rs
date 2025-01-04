@@ -1,6 +1,8 @@
 use std::convert::TryInto;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Deserialize, Serialize)]
 pub enum Player {
     North = 0,
     East = 1,
