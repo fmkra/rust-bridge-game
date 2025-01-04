@@ -634,6 +634,8 @@ async fn main() {
 
             loop {
                 println!("[p] - Pass");
+                println!("[d] - Double");
+                println!("[r] - Redouble");
                 println!("[value] [suit] - Bid");
                 println!("Suits are:");
                 println!("[C]lubs");
@@ -651,6 +653,24 @@ async fn main() {
                         .emit(
                             MAKE_BID_MESSAGE,
                             to_string(&MakeBidMessage { bid: Bid::Pass }).unwrap(),
+                        )
+                        .await
+                        .unwrap();
+                    break;
+                } else if bid == "d" {
+                    socket
+                        .emit(
+                            MAKE_BID_MESSAGE,
+                            to_string(&MakeBidMessage { bid: Bid::Double }).unwrap(),
+                        )
+                        .await
+                        .unwrap();
+                    break;
+                } else if bid == "r" {
+                    socket
+                        .emit(
+                            MAKE_BID_MESSAGE,
+                            to_string(&MakeBidMessage { bid: Bid::Redouble }).unwrap(),
                         )
                         .await
                         .unwrap();
@@ -711,6 +731,7 @@ async fn main() {
             Bid::Pass => {
                 println!("Auction was not won");
             }
+            Bid::Double | Bid::Redouble => {} // TODO: impossible, remove in the future
         }
 
         loop {

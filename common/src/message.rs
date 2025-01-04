@@ -215,7 +215,7 @@ pub mod server_response {
 }
 
 pub mod server_notification {
-    use crate::{Bid, Card, GameResult, Player, TrickState};
+    use crate::{Bid, Card, GameResult, GameValue, Player, TrickState};
 
     use super::*;
 
@@ -273,6 +273,7 @@ pub mod server_notification {
     pub struct AuctionFinishedNotificationInner {
         pub winner: Player,
         pub max_bid: Bid,
+        pub game_value: GameValue,
     }
 
     pub type AuctionFinishedNotification = Option<AuctionFinishedNotificationInner>;

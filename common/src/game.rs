@@ -13,7 +13,7 @@ pub enum GameState {
     Finished,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum GameValue {
     Regular,
     Doubled,
