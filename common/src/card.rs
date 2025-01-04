@@ -92,10 +92,7 @@ pub enum Suit {
 
 impl Suit {
     pub fn is_major(&self) -> bool {
-        if *self == Suit::Hearts || *self == Suit::Spades {
-            return true;
-        }
-        false
+        *self == Suit::Hearts || *self == Suit::Spades
     }
 
     pub fn to_str(&self) -> &str {

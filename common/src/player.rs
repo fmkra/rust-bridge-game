@@ -25,13 +25,7 @@ impl Player {
     }
 
     pub fn is_opponent(&self, player: Player) -> bool {
-        let p1 = self.skip(1);
-        let p2 = self.skip(3);
-
-        if player == p1 || player == p2 {
-            return true;
-        }
-        false
+        player == self.skip(1) || player == self.skip(3)
     }
 
     pub fn from_u8(value: u8) -> Option<Player> {

@@ -110,11 +110,11 @@ impl Game {
             game_value: GameValue::Regular,
             max_bidder: Player::North,
             first_bidder: Player::North,
-            player_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
-            collected_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
-            points: [0, 0, 0, 0],
-            game_wins: [0, 0, 0, 0],
-            vulnerable: [false, false, false, false],
+            player_cards: Default::default(),
+            collected_cards: Default::default(),
+            points: Default::default(),
+            game_wins: Default::default(),
+            vulnerable: Default::default(), // Default as [false, false, false, false]
             trick_no: 0,
             current_trick: Vec::new(),
         }
@@ -222,7 +222,7 @@ impl Game {
         // Player played the wrong suit, while right suit cards in hand
         if !self.current_trick.is_empty()
             && card.suit != self.current_trick[0].suit
-            && self.find_suit(player, &self.current_trick[0].suit)
+            && self.has_suit(player, &self.current_trick[0].suit)
         {
             return TrickStatus::Error(TrickError::WrongCardSuit);
         }
@@ -457,7 +457,7 @@ impl Game {
         self.player_cards[player_usize].iter().any(|c| c == card)
     }
 
-    pub fn find_suit(&self, player: &Player, suit: &Suit) -> bool {
+    pub fn has_suit(&self, player: &Player, suit: &Suit) -> bool {
         let player_usize = player.to_usize();
         self.player_cards[player_usize]
             .iter()

@@ -35,6 +35,15 @@ impl Bid {
         }
     }
 
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Self::Pass => 0,
+            Self::Play(_, _) => 1,
+            Self::Double => 2,
+            Self::Redouble => 3,
+        }
+    }
+
     pub fn to_str(&self) -> String {
         match self {
             Self::Pass => "Pass".into(),
@@ -47,31 +56,24 @@ impl Bid {
 
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            // Pass
-            (Bid::Pass, Bid::Pass) => Ordering::Equal,
-            (Bid::Pass, _) => Ordering::Less,
-            (_, Bid::Pass) => Ordering::Greater,
-
-            // Play
-            (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
-                match self_number.cmp(other_number) {
-                    Ordering::Equal => self_type.cmp(other_type),
-                    other => other,
-                }
+        let self_u8 = self.to_u8();
+        let other_u8 = other.to_u8();
+        if self_u8 < other_u8 {
+            Ordering::Less
+        } else if self_u8 == other_u8 {
+            match (self, other) {
+                (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
+                    match self_number.cmp(other_number) {
+                        Ordering::Equal => self_type.cmp(other_type),
+                        other => other,
+                    }
+                },
+                _ => {
+                    Ordering::Equal
+                },
             }
-            (Bid::Play(_, _), Bid::Double) => Ordering::Less,
-            (Bid::Play(_, _), Bid::Redouble) => Ordering::Less,
-            (Bid::Double, Bid::Play(_, _)) => Ordering::Greater,
-            (Bid::Redouble, Bid::Play(_, _)) => Ordering::Greater,
-
-            // Double
-            (Bid::Double, Bid::Double) => Ordering::Equal,
-            (Bid::Double, Bid::Redouble) => Ordering::Less,
-
-            //Redouble
-            (Bid::Redouble, Bid::Double) => Ordering::Greater,
-            (Bid::Redouble, Bid::Redouble) => Ordering::Equal,
+        } else {
+            Ordering::Greater
         }
     }
 }
