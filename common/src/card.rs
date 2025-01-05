@@ -91,6 +91,10 @@ pub enum Suit {
 }
 
 impl Suit {
+    pub fn is_major(&self) -> bool {
+        *self == Suit::Hearts || *self == Suit::Spades
+    }
+
     pub fn to_str(&self) -> &str {
         match self {
             Suit::Clubs => "♣",
@@ -114,14 +118,14 @@ impl Card {
 
     pub fn compare_with_trump(&self, other: &Card, bid_type: &BidType) -> Option<Ordering> {
         match bid_type {
-            BidType::NoTrump => self.partial_cmp(&other),
+            BidType::NoTrump => self.partial_cmp(other),
             BidType::Trump(trump_suit) => {
                 if self.suit == *trump_suit && other.suit != *trump_suit {
                     Some(Ordering::Greater)
                 } else if self.suit != *trump_suit && other.suit == *trump_suit {
                     Some(Ordering::Less)
                 } else {
-                    self.partial_cmp(&other)
+                    self.partial_cmp(other)
                 }
             }
         }

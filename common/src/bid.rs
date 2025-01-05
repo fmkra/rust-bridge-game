@@ -22,14 +22,25 @@ impl BidType {
 pub enum Bid {
     Pass,
     Play(u8, BidType),
+    Double,
+    Redouble,
 }
 
 impl Bid {
     pub fn new(number: u8, typ: BidType) -> Option<Bid> {
-        if number >= 1 && number <= 7 {
+        if (1..=7).contains(&number) {
             Some(Bid::Play(number, typ))
         } else {
             None
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            Self::Pass => 0,
+            Self::Play(_, _) => 1,
+            Self::Double => 2,
+            Self::Redouble => 3,
         }
     }
 
@@ -37,22 +48,32 @@ impl Bid {
         match self {
             Self::Pass => "Pass".into(),
             Self::Play(number, typ) => format!("{} {}", number, typ.to_str()),
+            Self::Double => "Double".into(),
+            Self::Redouble => "Redouble".into(),
         }
     }
 }
 
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Bid::Pass, Bid::Pass) => Ordering::Equal,
-            (Bid::Pass, Bid::Play(_, _)) => Ordering::Less,
-            (Bid::Play(_, _), Bid::Pass) => Ordering::Greater,
-            (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
-                match self_number.cmp(&other_number) {
-                    Ordering::Equal => self_type.cmp(&other_type),
-                    other => other,
-                }
+        let self_u8 = self.to_u8();
+        let other_u8 = other.to_u8();
+        if self_u8 < other_u8 {
+            Ordering::Less
+        } else if self_u8 == other_u8 {
+            match (self, other) {
+                (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
+                    match self_number.cmp(other_number) {
+                        Ordering::Equal => self_type.cmp(other_type),
+                        other => other,
+                    }
+                },
+                _ => {
+                    Ordering::Equal
+                },
             }
+        } else {
+            Ordering::Greater
         }
     }
 }
@@ -68,8 +89,8 @@ impl TryInto<BidType> for Bid {
 
     fn try_into(self) -> Result<BidType, Self::Error> {
         match self {
-            Bid::Pass => Err(()),
             Bid::Play(_, typ) => Ok(typ),
+            _ => Err(()),
         }
     }
 }

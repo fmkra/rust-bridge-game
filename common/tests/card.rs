@@ -2,6 +2,19 @@ use common::*;
 use core::cmp::Ordering;
 
 #[test]
+fn suit_is_major() {
+    let suit1 = Suit::Clubs;
+    let suit2 = Suit::Diamonds;
+    let suit3 = Suit::Hearts;
+    let suit4 = Suit::Spades;
+
+    assert_eq!(suit1.is_major(), false);
+    assert_eq!(suit2.is_major(), false);
+    assert_eq!(suit3.is_major(), true);
+    assert_eq!(suit4.is_major(), true);
+}
+
+#[test]
 fn card_partial_ord() {
     let card1 = Card::new(Rank::Two, Suit::Spades);
     let card2 = Card::new(Rank::Three, Suit::Spades);

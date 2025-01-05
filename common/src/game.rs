@@ -1,6 +1,7 @@
 use crate::bid::Bid;
 use crate::card::{Card, Rank, Suit};
 use crate::player::Player;
+use crate::BidType;
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 
@@ -12,11 +13,20 @@ pub enum GameState {
     Finished,
 }
 
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum GameValue {
+    Regular,
+    Doubled,
+    Redoubled,
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum BidError {
     GameStateMismatch,
     PlayerOutOfTurn,
     WrongBid,
+    CantDouble,
+    CantRedouble,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -37,17 +47,36 @@ pub enum TrickError {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TrickState {
-    pub game_state: GameState,
     pub cards: Vec<Card>,
     pub taker: Player,
 }
 
 impl TrickState {
-    pub fn new(game_state: GameState, cards: Vec<Card>, taker: Player) -> TrickState {
-        TrickState {
-            game_state,
-            cards,
-            taker,
+    pub fn new(cards: Vec<Card>, taker: Player) -> TrickState {
+        TrickState { cards, taker }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct DealFinished {
+    pub trick_state: TrickState,
+    pub points: [usize; 4],
+    pub game_wins: [usize; 4],
+    pub is_game_finished: bool,
+}
+
+impl DealFinished {
+    pub fn new(
+        trick_state: TrickState,
+        points: [usize; 4],
+        game_wins: [usize; 4],
+        is_game_finished: bool,
+    ) -> DealFinished {
+        DealFinished {
+            trick_state,
+            points,
+            game_wins,
+            is_game_finished,
         }
     }
 }
@@ -56,6 +85,7 @@ impl TrickState {
 pub enum TrickStatus {
     TrickInProgress,
     TrickFinished(TrickState),
+    DealFinished(DealFinished),
     Error(TrickError),
 }
 
@@ -70,12 +100,23 @@ pub struct GameResult {
 pub struct Game {
     pub state: GameState,
     pub max_bid: Bid,
+    pub game_value: GameValue,
     pub max_bidder: Player,
+    pub first_bidder: Player,
     pub current_player: Player,
     pub player_cards: [Vec<Card>; 4],
     pub collected_cards: [Vec<Card>; 4],
+    pub points: [usize; 4],
+    pub game_wins: [usize; 4],
+    pub vulnerable: [bool; 4],
     pub trick_no: u8,
     pub current_trick: Vec<Card>,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Game {
@@ -84,9 +125,14 @@ impl Game {
             state: GameState::WaitingForPlayers,
             current_player: Player::North,
             max_bid: Bid::Pass,
+            game_value: GameValue::Regular,
             max_bidder: Player::North,
-            player_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
-            collected_cards: [Vec::new(), Vec::new(), Vec::new(), Vec::new()],
+            first_bidder: Player::North,
+            player_cards: Default::default(),
+            collected_cards: Default::default(),
+            points: Default::default(),
+            game_wins: Default::default(),
+            vulnerable: Default::default(), // Default as [false, false, false, false]
             trick_no: 0,
             current_trick: Vec::new(),
         }
@@ -139,7 +185,7 @@ impl Game {
                         }
                     }
                 }
-                return BidStatus::Auction;
+                BidStatus::Auction
             }
             Bid::Play(_, _) => {
                 if bid > self.max_bid {
@@ -150,6 +196,34 @@ impl Game {
                 } else {
                     BidStatus::Error(BidError::WrongBid)
                 }
+            }
+            Bid::Double => {
+                if self.max_bid == Bid::Pass
+                    || self.game_value != GameValue::Regular
+                    || !player.is_opponent(self.max_bidder)
+                {
+                    return BidStatus::Error(BidError::CantDouble);
+                }
+
+                self.max_bidder = self.current_player;
+                self.current_player = self.current_player.next();
+                self.game_value = GameValue::Doubled;
+
+                BidStatus::Auction
+            }
+            Bid::Redouble => {
+                if self.max_bid == Bid::Pass
+                    || !player.is_opponent(self.max_bidder)
+                    || self.game_value != GameValue::Doubled
+                {
+                    return BidStatus::Error(BidError::CantRedouble);
+                }
+
+                self.max_bidder = self.current_player;
+                self.current_player = self.current_player.next();
+                self.game_value = GameValue::Redoubled;
+
+                BidStatus::Auction
             }
         }
     }
@@ -169,14 +243,14 @@ impl Game {
         // Player played the wrong suit, while right suit cards in hand
         if !self.current_trick.is_empty()
             && card.suit != self.current_trick[0].suit
-            && self.find_suit(player, &self.current_trick[0].suit)
+            && self.has_suit(player, &self.current_trick[0].suit)
         {
             return TrickStatus::Error(TrickError::WrongCardSuit);
         }
 
         // Either the trick is empty, the suit is right,
         // or the player has no more cards of this suit
-        self.current_trick.push(card.clone());
+        self.current_trick.push(*card);
         self.player_cards[player_usize].retain(|&c| c != *card);
         self.current_player = self.current_player.next();
 
@@ -188,32 +262,181 @@ impl Game {
             self.collected_cards[winner_usize].append(&mut self.current_trick);
             self.trick_no += 1;
 
+            let trick_state = TrickState::new(full_trick, self.current_player);
+
             if self.trick_no == 13 {
-                self.state = GameState::Finished;
-                return TrickStatus::TrickFinished(TrickState::new(
-                    GameState::Finished,
-                    full_trick,
-                    self.current_player.clone(),
+                // This function sets the self.state as Finished if the game is finished
+                // e.g. any pair has won 2 deals, then the winner is the one who has more points.
+                self.distribute_points();
+
+                let taker = self.current_player;
+
+                if self.state != GameState::Finished {
+                    self.trick_no = 0;
+                    self.state = GameState::Auction;
+                    self.game_value = GameValue::Regular;
+                    self.first_bidder = self.first_bidder.next();
+                    self.current_player = self.first_bidder;
+                }
+
+                return TrickStatus::DealFinished(DealFinished::new(
+                    trick_state,
+                    self.points,
+                    self.game_wins,
+                    self.state == GameState::Finished,
                 ));
             }
 
-            return TrickStatus::TrickFinished(TrickState::new(
-                GameState::Tricking,
-                full_trick,
-                self.current_player.clone(),
-            ));
+            return TrickStatus::TrickFinished(trick_state);
         }
 
         TrickStatus::TrickInProgress
+    }
+
+    pub fn distribute_points(&mut self) {
+        let bidder_usize = self.max_bidder.to_usize();
+        let partner_usize = self.max_bidder.get_partner().to_usize();
+
+        let tricks_earned = (self.collected_cards[bidder_usize].len()
+            + self.collected_cards[partner_usize].len())
+            / 4;
+
+        // Destructure self.max_bid, as it's guaranteed to be Bid::Play
+        let Bid::Play(tricks_declared_value, bid_type) = self.max_bid else {
+            eprintln!("self.max_bid should always be Bid::Play when distributing points");
+            return;
+        };
+        let tricks_declared = tricks_declared_value as usize + 6;
+
+        let is_vulnerable = self.vulnerable[bidder_usize];
+        let contract_succeeded = tricks_earned >= tricks_declared;
+
+        if contract_succeeded {
+            // Calculate contract points
+            let base_points = match bid_type {
+                BidType::Trump(Suit::Clubs) | BidType::Trump(Suit::Diamonds) => {
+                    20 * (tricks_declared - 6)
+                }
+                BidType::Trump(Suit::Hearts) | BidType::Trump(Suit::Spades) => {
+                    30 * (tricks_declared - 6)
+                }
+                BidType::NoTrump => {
+                    40 + 30 * (tricks_declared - 7) // First trick 40, subsequent tricks 30
+                }
+            };
+
+            let doubled_bonus = match self.game_value {
+                GameValue::Doubled => 50,
+                GameValue::Redoubled => 100,
+                _ => 0,
+            };
+
+            self.points[bidder_usize] += base_points;
+            self.points[bidder_usize] += doubled_bonus;
+
+            // Slam bonuses
+            if tricks_declared == 12 {
+                self.points[bidder_usize] += if is_vulnerable { 750 } else { 500 };
+            } else if tricks_declared == 13 {
+                self.points[bidder_usize] += if is_vulnerable { 1500 } else { 1000 };
+            }
+
+            // Overtrick points
+            let overtricks = tricks_earned - tricks_declared;
+            let overtrick_points = match self.game_value {
+                GameValue::Doubled => {
+                    if is_vulnerable {
+                        overtricks * 200
+                    } else {
+                        overtricks * 100
+                    }
+                }
+                GameValue::Redoubled => {
+                    if is_vulnerable {
+                        overtricks * 400
+                    } else {
+                        overtricks * 200
+                    }
+                }
+                _ => {
+                    overtricks
+                        * match bid_type {
+                            BidType::Trump(Suit::Clubs) | BidType::Trump(Suit::Diamonds) => 20,
+                            BidType::Trump(Suit::Hearts) | BidType::Trump(Suit::Spades) => 30,
+                            BidType::NoTrump => 30, // Overtricks in NoTrump are 30 points each
+                        }
+                }
+            };
+
+            self.points[bidder_usize] += overtrick_points;
+
+            // Mark the pair as vulnerable if they won the game
+            self.vulnerable[bidder_usize] = true;
+            self.vulnerable[partner_usize] = true;
+
+            // Check if the pair has won two games and end the match if so
+            self.game_wins[bidder_usize] += 1;
+            self.game_wins[partner_usize] += 1;
+
+            if self.game_wins[bidder_usize] >= 2 || self.game_wins[partner_usize] >= 2 {
+                self.state = GameState::Finished;
+            }
+        } else {
+            // Penalty points for undertricks
+            let undertricks = tricks_declared - tricks_earned;
+            let penalty_points = match self.game_value {
+                GameValue::Regular => {
+                    if is_vulnerable {
+                        // 100 per undertrick
+                        undertricks * 100
+                    } else {
+                        // 50 per undertrick
+                        undertricks * 50
+                    }
+                }
+                GameValue::Doubled => {
+                    if is_vulnerable {
+                        // 200 for the first undertrick, 300 for each subsequent
+                        200 + (undertricks - 1) * 300
+                    } else {
+                        // 100 for the first undertrick, 200 for 2nd and 3rd undertrick, 300 for subsequent
+                        100 + ((undertricks - 1 > 0) as usize * 200)
+                            + ((undertricks - 2 > 0) as usize * 200)
+                            + ((undertricks - 3 > 0) as usize * (undertricks - 3) * 300)
+                    }
+                }
+                GameValue::Redoubled => {
+                    if is_vulnerable {
+                        // 400 for the first undertrick, 600 for each subsequent
+                        400 + (undertricks - 1) * 600
+                    } else {
+                        // 200 for the first undertrick, 400 for 2nd and 3rd undertrick, 600 for subsequent
+                        200 + ((undertricks - 1 > 0) as usize * 400)
+                            + ((undertricks - 2 > 0) as usize * 400)
+                            + ((undertricks - 3 > 0) as usize * (undertricks - 3) * 600)
+                    }
+                }
+            };
+
+            let opponents = [
+                self.max_bidder.next().to_usize(),
+                self.max_bidder.skip(3).to_usize(),
+            ];
+
+            for &opponent in &opponents {
+                self.points[opponent] += penalty_points;
+            }
+        }
+        // Make sure the partner has the same amounts of points as bidder, as the game is played in pairs.
+        self.points[partner_usize] = self.points[bidder_usize];
     }
 
     pub fn evaluate(&self) -> Option<GameResult> {
         if self.state != GameState::Finished {
             return None;
         }
-        let bidded = self.max_bid.clone();
+        let bidded = self.max_bid;
         match bidded {
-            Bid::Pass => None,
             Bid::Play(val, _) => {
                 let max_bidder = self.max_bidder.to_usize();
                 let dummy = self.max_bidder.next().next().to_usize();
@@ -226,6 +449,7 @@ impl Game {
                     contract_succeeded,
                 })
             }
+            _ => None,
         }
     }
 
@@ -233,33 +457,29 @@ impl Game {
         if self.state != GameState::Tricking {
             return None;
         }
-        if self.trick_no == 0 && self.current_trick.len() == 0 {
+        if self.trick_no == 0 && self.current_trick.is_empty() {
             // No cards were given, the dummy doesn't reveal its' cards yet.
             return None;
         }
         let dummy_usize = self.max_bidder.next().next().to_usize();
-        return Some(&self.player_cards[dummy_usize]);
+        Some(&self.player_cards[dummy_usize])
     }
 
     pub fn get_cards(&self, player: &Player) -> &Vec<Card> {
         let player_usize = player.to_usize();
-        return &self.player_cards[player_usize];
+        &self.player_cards[player_usize]
     }
 
     pub fn has_card(&self, player: &Player, card: &Card) -> bool {
         let player_usize = player.to_usize();
-        self.player_cards[player_usize]
-            .iter()
-            .find(|c| *c == card)
-            .is_some()
+        self.player_cards[player_usize].iter().any(|c| c == card)
     }
 
-    pub fn find_suit(&self, player: &Player, suit: &Suit) -> bool {
+    pub fn has_suit(&self, player: &Player, suit: &Suit) -> bool {
         let player_usize = player.to_usize();
         self.player_cards[player_usize]
             .iter()
-            .find(|c| c.suit == *suit)
-            .is_some()
+            .any(|c| c.suit == *suit)
     }
 
     pub fn set_winner(&mut self) {

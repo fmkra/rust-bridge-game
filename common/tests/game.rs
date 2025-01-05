@@ -1,4 +1,5 @@
 use common::*;
+use game::DealFinished;
 
 #[test]
 fn game_trick_max() {
@@ -194,7 +195,6 @@ fn game_place_trick() {
     );
 
     let mut trick_state = TrickState::new(
-        GameState::Tricking,
         vec![
             Card::new(Rank::Jack, Suit::Spades),
             Card::new(Rank::Queen, Suit::Spades),
@@ -245,7 +245,6 @@ fn game_place_trick() {
     );
 
     trick_state = TrickState::new(
-        GameState::Tricking,
         vec![
             Card::new(Rank::Two, Suit::Spades),
             Card::new(Rank::Two, Suit::Clubs),
@@ -278,7 +277,7 @@ fn game_place_trick() {
 }
 
 #[test]
-fn game_full_game() {
+fn game_one_deal() {
     let mut game = Game::new();
     let mut cards_north: Vec<Card> = Vec::new();
     let mut cards_east: Vec<Card> = Vec::new();
@@ -337,7 +336,7 @@ fn game_full_game() {
     );
 
     // Tricking
-    for rank_u8 in 2..14 {
+    for rank_u8 in 2..=13 {
         assert_eq!(
             TrickStatus::TrickInProgress,
             game.trick(
@@ -361,7 +360,6 @@ fn game_full_game() {
         );
 
         let trick_state = TrickState::new(
-            GameState::Tricking,
             vec![
                 Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs),
                 Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds),
@@ -394,7 +392,6 @@ fn game_full_game() {
     );
 
     let trick_state = TrickState::new(
-        GameState::Finished,
         vec![
             Card::new(Rank::Ace, Suit::Clubs),
             Card::new(Rank::Ace, Suit::Diamonds),
@@ -404,8 +401,11 @@ fn game_full_game() {
         Player::North,
     );
 
+    // North and South received 450 points for this deal
+    let deal_finished = DealFinished::new(trick_state, [450, 0, 450, 0], [1, 0, 1, 0], false);
+
     assert_eq!(
-        TrickStatus::TrickFinished(trick_state),
+        TrickStatus::DealFinished(deal_finished),
         game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
     );
 
@@ -418,7 +418,7 @@ fn game_full_game() {
         ],
         game.player_cards
     );
-    assert_eq!(13, game.trick_no);
+    assert_eq!(0, game.trick_no);
 }
 
 #[test]
@@ -482,4 +482,102 @@ fn game_get_dummy() {
     game2.trick_no = 0;
     game2.current_trick.push(Card::new(Rank::Ace, Suit::Spades));
     assert_eq!(Some(&cards), game2.get_dummy());
+}
+
+#[test]
+fn test_distribute_points_contract_success() {
+    let mut game = Game::new();
+    game.max_bid = Bid::new(3, BidType::Trump(Suit::Hearts)).unwrap();
+    game.max_bidder = Player::North;
+
+    let bidder_usize = game.max_bidder.to_usize();
+    let partner_usize = game.max_bidder.get_partner().to_usize();
+
+    // North and partner earn 10 tricks (1 over contract)
+    for _ in 0..10 {
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Clubs));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Diamonds));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Hearts));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Spades));
+    }
+
+    game.distribute_points();
+
+    assert_eq!(game.points[bidder_usize], 120); // Base points: 30 x 3
+    assert_eq!(game.points[partner_usize], 120); // Partner earns the same value
+    assert!(game.vulnerable[bidder_usize]); // Pair becomes vulnerable
+}
+
+#[test]
+fn test_distribute_points_contract_failure() {
+    let mut game = Game::new();
+    game.max_bid = Bid::new(4, BidType::NoTrump).unwrap();
+    game.max_bidder = Player::East;
+
+    let bidder_usize = game.max_bidder.to_usize();
+
+    // East and partner earn only 8 tricks (2 under contract)
+    for _ in 0..8 {
+        game.collected_cards[bidder_usize].push(Card::new(Rank::King, Suit::Clubs));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::King, Suit::Diamonds));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::King, Suit::Hearts));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::King, Suit::Spades));
+    }
+
+    game.distribute_points();
+
+    assert_eq!(game.points[bidder_usize], 0); // No points for failing contract
+    assert_eq!(game.points[game.max_bidder.next().to_usize()], 100); // Opponents get penalty points
+}
+
+#[test]
+fn test_distribute_points_game_won() {
+    let mut game = Game::new();
+    game.max_bid = Bid::new(6, BidType::Trump(Suit::Spades)).unwrap();
+    game.max_bidder = Player::South;
+    game.vulnerable[game.max_bidder.to_usize()] = true;
+    game.vulnerable[game.max_bidder.get_partner().to_usize()] = true;
+
+    let bidder_usize = game.max_bidder.to_usize();
+    let partner_usize = game.max_bidder.get_partner().to_usize();
+
+    // South and partner win the contract and have already won a previous game
+    game.game_wins[bidder_usize] = 1;
+    game.game_wins[partner_usize] = 1;
+
+    for _ in 0..12 {
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Clubs));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Diamonds));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Hearts));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Spades));
+    }
+
+    game.distribute_points();
+
+    assert_eq!(game.points[bidder_usize], 930); // Base points: 30 x 6 + 750 vulnerable slam bonus
+    assert_eq!(game.points[partner_usize], 930); // Partner earns the same amount
+    assert_eq!(game.state, GameState::Finished); // Game ends after two wins
+}
+
+#[test]
+fn test_distribute_points_overtricks() {
+    let mut game = Game::new();
+    game.max_bid = Bid::new(3, BidType::Trump(Suit::Diamonds)).unwrap();
+    game.max_bidder = Player::West;
+    game.game_value = GameValue::Doubled;
+
+    let bidder_usize = game.max_bidder.to_usize();
+
+    // West earns 12 tricks (3 over contract)
+    for _ in 0..12 {
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Clubs));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Diamonds));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Hearts));
+        game.collected_cards[bidder_usize].push(Card::new(Rank::Ace, Suit::Spades));
+    }
+
+    game.distribute_points();
+
+    assert_eq!(game.points[bidder_usize], 410); // Base points + overtricks
+    assert!(game.vulnerable[bidder_usize]); // Pair becomes vulnerable
 }

@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Deserialize, Serialize)]
 pub enum Player {
     North = 0,
     East = 1,
@@ -18,6 +18,14 @@ impl Player {
     pub fn skip(&self, num_skips: usize) -> Player {
         // Unwrap() is valid, as the number is in [0; 3]
         Player::from_usize((self.to_usize() + num_skips) % 4).unwrap()
+    }
+
+    pub fn get_partner(&self) -> Player {
+        self.skip(2)
+    }
+
+    pub fn is_opponent(&self, player: Player) -> bool {
+        player == self.skip(1) || player == self.skip(3)
     }
 
     pub fn from_u8(value: u8) -> Option<Player> {

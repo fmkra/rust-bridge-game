@@ -326,6 +326,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             s.emit(AUCTION_FINISHED_NOTIFICATION, &Some(AuctionFinishedNotificationInner {
                                 winner: room_lock.game.max_bidder,
                                 max_bid: room_lock.game.max_bid,
+                                game_value: room_lock.game.game_value,
                             })).unwrap();
 
                             s.emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
@@ -381,14 +382,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             match room_lock.game.place_bid(&player, data.bid) {
-                BidStatus::Error(BidError::GameStateMismatch) => {
-                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::AuctionNotInProcess).unwrap();
-                },
-                BidStatus::Error(BidError::PlayerOutOfTurn) => {
-                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::NotYourTurn).unwrap();
-                },
-                BidStatus::Error(BidError::WrongBid) => {
-                    s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::InvalidBid).unwrap();
+                BidStatus::Error(bid_error) => match bid_error {
+                    BidError::GameStateMismatch => {
+                        s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::AuctionNotInProcess).unwrap();
+                    },
+                    BidError::PlayerOutOfTurn => {
+                        s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::NotYourTurn).unwrap();
+                    },
+                    BidError::WrongBid | BidError::CantDouble | BidError::CantRedouble => { // TODO: maybe handle double separately
+                        s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::InvalidBid).unwrap();
+                    },
                 },
                 next_state => {
                     s.emit(MAKE_BID_RESPONSE, &MakeBidResponse::Ok).unwrap();
@@ -403,6 +406,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         s.within(room_handle.clone()).emit(AUCTION_FINISHED_NOTIFICATION, &Some(AuctionFinishedNotificationInner {
                             winner: room_lock.game.max_bidder,
                             max_bid: room_lock.game.max_bid,
+                            game_value: room_lock.game.game_value,
                         })).unwrap();
 
                         if next_state == BidStatus::Finished {

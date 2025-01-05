@@ -40,3 +40,16 @@ fn player_next() {
     assert_eq!(player2.next(), player3);
     assert_eq!(player3.next(), player0);
 }
+
+#[test]
+fn player_skip() {
+    let player0 = Player::North;
+    let player1 = Player::East;
+    let player2 = Player::South;
+    let player3 = Player::West;
+    assert_eq!(player0.skip(2), player2);
+    assert_eq!(player0.skip(3), player3);
+    assert_eq!(player3.skip(2), player1);
+    assert_eq!(player2.skip(3), player1);
+    assert_eq!(player0.skip(4), player0);
+}
