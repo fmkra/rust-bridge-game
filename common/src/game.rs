@@ -13,7 +13,7 @@ pub enum GameState {
     Finished,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum GameValue {
     Regular,
     Doubled,
@@ -180,7 +180,9 @@ impl Game {
                 }
             }
             Bid::Double => {
-                if self.max_bid == Bid::Pass || !player.is_opponent(self.max_bidder) {
+                if self.max_bid == Bid::Pass ||
+                    self.game_value != GameValue::Regular || 
+                    !player.is_opponent(self.max_bidder) {
                     return BidStatus::Error(BidError::CantDouble);
                 }
 
