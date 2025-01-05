@@ -16,26 +16,20 @@ use common::{
         client_message::{
             GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
             ListRoomsMessage, LoginMessage, MakeBidMessage, MakeTrickMessage, RegisterRoomMessage,
-            SelectPlaceMessage, GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE,
-            LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, MAKE_BID_MESSAGE,
-            MAKE_TRICK_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
+            SelectPlaceMessage,
         },
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
             DummyCardsNotification, GameFinishedNotification, GameStartedNotification,
             JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
-            TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION,
-            AUCTION_FINISHED_NOTIFICATION, DUMMY_CARDS_NOTIFICATION, GAME_FINISHED_NOTIFICATION,
-            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
-            SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
+            TrickFinishedNotification,
         },
         server_response::{
-            GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
-            LoginResponse, MakeBidResponse, MakeTrickResponse, SelectPlaceResponse,
-            GET_CARDS_RESPONSE, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE,
-            LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, MAKE_BID_RESPONSE, MAKE_TRICK_RESPONSE,
-            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
+            GetCardsResponse, JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse,
+            ListRoomsResponse, LoginResponse, MakeBidResponse, MakeTrickResponse,
+            RegisterRoomResponse, SelectPlaceResponse,
         },
+        MessageTrait,
     },
     room::{RoomId, RoomInfo, Visibility},
     user::User,
@@ -84,7 +78,7 @@ async fn main() {
 
     let socket = ClientBuilder::new("http://localhost:3000/")
         .namespace("/")
-        .on(LOGIN_RESPONSE, move |payload, s| {
+        .on(LoginResponse::MSG_TYPE, move |payload, s| {
             let select_username_tx = select_username_tx.clone();
             async move {
                 let msg = match payload {
@@ -95,9 +89,12 @@ async fn main() {
                 };
                 match msg {
                     LoginResponse::Ok => {
-                        s.emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
-                            .await
-                            .unwrap();
+                        s.emit(
+                            ListRoomsMessage::MSG_TYPE,
+                            to_string(&ListRoomsMessage {}).unwrap(),
+                        )
+                        .await
+                        .unwrap();
                         select_username_tx.send(true).await.unwrap();
                     }
                     LoginResponse::UsernameAlreadyExists => {
@@ -112,7 +109,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(LIST_ROOMS_RESPONSE, move |payload, _| {
+        .on(ListRoomsResponse::MSG_TYPE, move |payload, _| {
             let room_ids_tx = room_ids_tx.clone();
             async move {
                 let rooms = match payload {
@@ -131,7 +128,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(REGISTER_ROOM_RESPONSE, move |_, _| {
+        .on(RegisterRoomResponse::MSG_TYPE, move |_, _| {
             let notifier = register_room_notifier_clone.clone();
             async move {
                 // println!("Room registered {:?}", payload);
@@ -139,7 +136,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(JOIN_ROOM_RESPONSE, move |payload, c| {
+        .on(JoinRoomResponse::MSG_TYPE, move |payload, c| {
             async move {
                 let _msg = match payload {
                     Payload::Text(text) => {
@@ -148,7 +145,7 @@ async fn main() {
                     _ => return,
                 };
                 c.emit(
-                    LIST_PLACES_MESSAGE,
+                    ListPlacesMessage::MSG_TYPE,
                     to_string(&ListPlacesMessage {}).unwrap(),
                 )
                 .await
@@ -156,7 +153,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(LIST_PLACES_RESPONSE, move |payload, _| {
+        .on(ListPlacesResponse::MSG_TYPE, move |payload, _| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -189,7 +186,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(SELECT_PLACE_RESPONSE, move |payload, _| {
+        .on(SelectPlaceResponse::MSG_TYPE, move |payload, _| {
             let notify = select_place_tx.clone();
             async move {
                 let msg = match payload {
@@ -203,7 +200,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(SELECT_PLACE_NOTIFICATION, move |payload, _| {
+        .on(SelectPlaceNotification::MSG_TYPE, move |payload, _| {
             async move {
                 let player_position = match payload {
                     Payload::Text(text) => {
@@ -219,7 +216,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(JOIN_ROOM_NOTIFICATION, move |payload, _| {
+        .on(JoinRoomNotification::MSG_TYPE, move |payload, _| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -231,7 +228,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(LEAVE_ROOM_RESPONSE, move |payload, c| {
+        .on(LeaveRoomResponse::MSG_TYPE, move |payload, c| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -240,13 +237,16 @@ async fn main() {
                     _ => return,
                 };
                 println!("Leave room response {:?}", msg);
-                c.emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
-                    .await
-                    .unwrap();
+                c.emit(
+                    ListRoomsMessage::MSG_TYPE,
+                    to_string(&ListRoomsMessage {}).unwrap(),
+                )
+                .await
+                .unwrap();
             }
             .boxed()
         })
-        .on(LEAVE_ROOM_NOTIFICATION, move |payload, _| {
+        .on(LeaveRoomNotification::MSG_TYPE, move |payload, _| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -258,7 +258,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(GAME_STARTED_NOTIFICATION, move |payload, c| {
+        .on(GameStartedNotification::MSG_TYPE, move |payload, c| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -267,13 +267,16 @@ async fn main() {
                     _ => return,
                 };
                 println!("Game started {:?}", msg);
-                c.emit(GET_CARDS_MESSAGE, to_string(&GetCardsMessage {}).unwrap())
-                    .await
-                    .unwrap();
+                c.emit(
+                    GetCardsMessage::MSG_TYPE,
+                    to_string(&GetCardsMessage {}).unwrap(),
+                )
+                .await
+                .unwrap();
             }
             .boxed()
         })
-        .on(GET_CARDS_RESPONSE, move |payload, _| {
+        .on(GetCardsResponse::MSG_TYPE, move |payload, _| {
             let card_list = card_list_clone.clone();
             let card_list_notify = card_list_notify_clone.clone();
             let my_position_tx = my_position_tx_1.clone();
@@ -298,7 +301,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(ASK_BID_NOTIFICATION, move |payload, _| {
+        .on(AskBidNotification::MSG_TYPE, move |payload, _| {
             let ask_bid_tx = ask_bid_tx_1.clone();
             async move {
                 let msg = match payload {
@@ -311,7 +314,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(MAKE_BID_RESPONSE, move |payload, _| {
+        .on(MakeBidResponse::MSG_TYPE, move |payload, _| {
             let ask_bid_tx = ask_bid_tx_2.clone();
             async move {
                 let msg = match payload {
@@ -330,7 +333,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(AUCTION_FINISHED_NOTIFICATION, move |payload, _| {
+        .on(AuctionFinishedNotification::MSG_TYPE, move |payload, _| {
             let auction_result = auction_result_clone.clone();
             let ask_bid_tx = ask_bid_tx_3.clone();
             async move {
@@ -341,13 +344,18 @@ async fn main() {
                     }
                     _ => return,
                 };
-                let msg = msg.expect("No winner"); // TODO: 4 passes
+                let msg = match msg {
+                    AuctionFinishedNotification::NoWinner => {
+                        panic!("No winner");
+                    }
+                    AuctionFinishedNotification::Winner(m) => m,
+                };
                 *auction_result.lock().await = Some(msg);
                 ask_bid_tx.send(None).await.unwrap();
             }
             .boxed()
         })
-        .on(DUMMY_CARDS_NOTIFICATION, move |payload, _| {
+        .on(DummyCardsNotification::MSG_TYPE, move |payload, _| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -366,7 +374,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(ASK_TRICK_NOTIFICATION, move |payload, _| {
+        .on(AskTrickNotification::MSG_TYPE, move |payload, _| {
             let ask_trick_tx = ask_trick_tx_1.clone();
             async move {
                 let msg = match payload {
@@ -379,7 +387,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(MAKE_TRICK_RESPONSE, move |payload, _| {
+        .on(MakeTrickResponse::MSG_TYPE, move |payload, _| {
             let ask_trick_tx = ask_trick_tx_2.clone();
             let card_list = card_list_clone_2.clone();
             let selected_card_clone = selected_card_clone.clone();
@@ -411,7 +419,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(TRICK_FINISHED_NOTIFICATION, move |payload, _| {
+        .on(TrickFinishedNotification::MSG_TYPE, move |payload, _| {
             async move {
                 let msg = match payload {
                     Payload::Text(text) => {
@@ -432,7 +440,7 @@ async fn main() {
             }
             .boxed()
         })
-        .on(GAME_FINISHED_NOTIFICATION, move |payload, _| {
+        .on(GameFinishedNotification::MSG_TYPE, move |payload, _| {
             let game_finished_clone = game_finished_clone.clone();
             let ask_trick_tx = ask_trick_tx_3.clone();
             async move {
@@ -465,7 +473,7 @@ async fn main() {
         };
 
         socket
-            .emit(LOGIN_MESSAGE, to_string(&msg).unwrap())
+            .emit(LoginMessage::MSG_TYPE, to_string(&msg).unwrap())
             .await
             .unwrap();
 
@@ -495,7 +503,10 @@ async fn main() {
                 }
                 "r" => {
                     socket
-                        .emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
+                        .emit(
+                            ListRoomsMessage::MSG_TYPE,
+                            to_string(&ListRoomsMessage {}).unwrap(),
+                        )
                         .await
                         .unwrap();
                     continue 'lobby_loop;
@@ -524,7 +535,7 @@ async fn main() {
                 };
 
                 socket
-                    .emit(REGISTER_ROOM_MESSAGE, to_string(&msg).unwrap())
+                    .emit(RegisterRoomMessage::MSG_TYPE, to_string(&msg).unwrap())
                     .await
                     .unwrap();
 
@@ -543,7 +554,7 @@ async fn main() {
             };
 
             socket
-                .emit(JOIN_ROOM_MESSAGE, to_string(&msg).unwrap())
+                .emit(JoinRoomMessage::MSG_TYPE, to_string(&msg).unwrap())
                 .await
                 .unwrap();
 
@@ -557,7 +568,7 @@ async fn main() {
                 if position >= 0 && position < 4 {
                     socket
                         .emit(
-                            SELECT_PLACE_MESSAGE,
+                            SelectPlaceMessage::MSG_TYPE,
                             to_string(&SelectPlaceMessage {
                                 position: Player::from_usize(position as usize),
                             })
@@ -572,7 +583,7 @@ async fn main() {
                         println!("Position already taken");
                         socket
                             .emit(
-                                LIST_PLACES_MESSAGE,
+                                ListPlacesMessage::MSG_TYPE,
                                 to_string(&ListPlacesMessage {}).unwrap(),
                             )
                             .await
@@ -583,7 +594,10 @@ async fn main() {
                     break 'room_selection;
                 } else {
                     socket
-                        .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+                        .emit(
+                            LeaveRoomMessage::MSG_TYPE,
+                            to_string(&LeaveRoomMessage {}).unwrap(),
+                        )
                         .await
                         .unwrap();
 
@@ -651,7 +665,7 @@ async fn main() {
                 if bid == "p" {
                     socket
                         .emit(
-                            MAKE_BID_MESSAGE,
+                            MakeBidMessage::MSG_TYPE,
                             to_string(&MakeBidMessage { bid: Bid::Pass }).unwrap(),
                         )
                         .await
@@ -660,7 +674,7 @@ async fn main() {
                 } else if bid == "d" {
                     socket
                         .emit(
-                            MAKE_BID_MESSAGE,
+                            MakeBidMessage::MSG_TYPE,
                             to_string(&MakeBidMessage { bid: Bid::Double }).unwrap(),
                         )
                         .await
@@ -669,7 +683,7 @@ async fn main() {
                 } else if bid == "r" {
                     socket
                         .emit(
-                            MAKE_BID_MESSAGE,
+                            MakeBidMessage::MSG_TYPE,
                             to_string(&MakeBidMessage { bid: Bid::Redouble }).unwrap(),
                         )
                         .await
@@ -702,7 +716,7 @@ async fn main() {
 
                 socket
                     .emit(
-                        MAKE_BID_MESSAGE,
+                        MakeBidMessage::MSG_TYPE,
                         to_string(&MakeBidMessage { bid }).unwrap(),
                     )
                     .await
@@ -818,7 +832,7 @@ async fn main() {
                 println!("Playing card {}", card.to_string());
                 socket
                     .emit(
-                        MAKE_TRICK_MESSAGE,
+                        MakeTrickMessage::MSG_TYPE,
                         to_string(&MakeTrickMessage { card }).unwrap(),
                     )
                     .await
@@ -829,7 +843,10 @@ async fn main() {
     }
 
     socket
-        .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+        .emit(
+            LeaveRoomMessage::MSG_TYPE,
+            to_string(&LeaveRoomMessage {}).unwrap(),
+        )
         .await
         .unwrap();
 
