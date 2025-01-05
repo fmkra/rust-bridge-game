@@ -67,10 +67,8 @@ impl Ord for Bid {
                         Ordering::Equal => self_type.cmp(other_type),
                         other => other,
                     }
-                },
-                _ => {
-                    Ordering::Equal
-                },
+                }
+                _ => Ordering::Equal,
             }
         } else {
             Ordering::Greater

@@ -35,7 +35,7 @@ use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 use state::{RoomState, ServerState};
-use utils::{notify, notify_others, send};
+use utils::{get_client_or_response, notify, notify_others, send};
 
 mod handlers;
 mod state;
@@ -99,10 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             RegisterRoomMessage::MSG_TYPE,
             |s: SocketRef, Data::<RegisterRoomMessage>(data), state: State<ServerState>| async move {
-                let Some(client_data) = s.extensions.get::<ClientData>() else {
-                    send(&s, &RegisterRoomResponse::Unauthenticated);
-                    return;
-                };
+                let Some(client_data) = get_client_or_response(&s, &RegisterRoomResponse::Unauthenticated) else {return};
 
                 let room_id = data.room_info.id.clone();
 
@@ -127,10 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             JoinRoomMessage::MSG_TYPE,
             |s: SocketRef, Data::<JoinRoomMessage>(data), state: State<ServerState>| async move {
-                let Some(mut client_data) = s.extensions.get::<ClientData>() else {
-                    send(&s, &JoinRoomResponse::Unauthenticated);
-                    return;
-                };
+                let Some(mut client_data) = get_client_or_response(&s, &JoinRoomResponse::Unauthenticated) else {return};
 
                 if client_data.room.is_some() {
                     send(&s, &JoinRoomResponse::AlreadyInRoom);
@@ -187,10 +181,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         s.on(LeaveRoomMessage::MSG_TYPE, move |s: SocketRef| async move {
-            let Some(client_data) = s.extensions.get::<ClientData>() else {
-                send(&s, &LeaveRoomResponse::Unauthenticated);
-                return;
-            };
+            let Some(client_data) = get_client_or_response(&s, &LeaveRoomResponse::Unauthenticated) else {return};
+
             let Some(room) = client_data.room.clone() else {
                 send(&s, &LeaveRoomResponse::NotInRoom);
                 return;
@@ -200,10 +192,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         s.on(ListPlacesMessage::MSG_TYPE, |s: SocketRef| async move {
-            let Some(client_data) = s.extensions.get::<ClientData>() else {
-                send(&s, &ListPlacesResponse::Unauthenticated);
-                return;
-            };
+            let Some(client_data) = get_client_or_response(&s, &ListPlacesResponse::Unauthenticated) else {return};
+
             let Some(room) = client_data.room else {
                 send(&s, &ListPlacesResponse::NotInRoom);
                 return;
@@ -220,10 +210,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             SelectPlaceMessage::MSG_TYPE,
             |s: SocketRef, Data::<SelectPlaceMessage>(data)| async move {
-                let Some(client_data) = s.extensions.get::<ClientData>() else {
-                    send(&s, &SelectPlaceResponse::Unauthenticated);
-                    return;
-                };
+                let Some(client_data) = get_client_or_response(&s, &SelectPlaceResponse::Unauthenticated) else {return};
+
                 let Some(room) = client_data.room else {
                     send(&s, &SelectPlaceResponse::NotInRoom);
                     return;
@@ -267,7 +255,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(player_position) = player_position_all_taken {
                     info!("Game started in room \"{}\"", room_id.as_str());
 
-                    let (msg, first_player, previous_game_state) = {
+                    let (game_started_notification, first_player, previous_game_state) = {
                         let mut room_lock = room.write().await;
                         let previous_game_state = room_lock.game.state.clone();
                         if previous_game_state == GameState::WaitingForPlayers {
@@ -280,23 +268,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         (msg, room_lock.game.current_player, previous_game_state)
                     };
 
-                    let msg2 = AskBidNotification {
+                    let ask_bid_notification = AskBidNotification {
                         player: first_player,
                         max_bid: Bid::Pass,
                     };
 
                     if previous_game_state == GameState::WaitingForPlayers {
                         // Game starts
-                        notify(&s, &room_id, &msg);
+                        notify(&s, &room_id, &game_started_notification);
 
-                        notify(&s, &room_id, &msg2);
+                        notify(&s, &room_id, &ask_bid_notification);
                     } else {
                         // Game is already running and is resumed now
                         // TODO: maybe when 2 players leave, let first one in before 2nd joins
-                        send(&s, &msg);
+                        send(&s, &game_started_notification);
 
                         if previous_game_state == GameState::Auction {
-                            send(&s, &msg2);
+                            send(&s, &ask_bid_notification);
                         } else {
                             let room_lock = room.read().await;
 
@@ -317,10 +305,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         s.on(GetCardsMessage::MSG_TYPE, |s: SocketRef| async move {
-            let Some(client_data) = s.extensions.get::<ClientData>() else {
-                send(&s, &GetCardsResponse::Unauthenticated);
-                return;
-            };
+            let Some(client_data) = get_client_or_response(&s, &GetCardsResponse::Unauthenticated) else {return};
+
             let Some(room) = client_data.room else {
                 send(&s, &GetCardsResponse::NotInRoom);
                 return;
@@ -342,10 +328,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         s.on(MakeBidMessage::MSG_TYPE, |s: SocketRef, Data::<MakeBidMessage>(data)| async move {
-            let Some(client_data) = s.extensions.get::<ClientData>() else {
-                send(&s, &MakeBidResponse::Unauthenticated);
-                return;
-            };
+            let Some(client_data) = get_client_or_response(&s, &MakeBidResponse::Unauthenticated) else {return};
+
             let Some(room) = client_data.room else {
                 send(&s, &MakeBidResponse::NotInRoom);
                 return;
@@ -401,10 +385,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
 
         s.on(MakeTrickMessage::MSG_TYPE, |s: SocketRef, Data::<MakeTrickMessage>(data)| async move {
-            let Some(client_data) = s.extensions.get::<ClientData>() else {
-                send(&s, &MakeTrickResponse::Unauthenticated);
-                return;
-            };
+            let Some(client_data) = get_client_or_response(&s, &MakeTrickResponse::Unauthenticated) else {return};
+
             let Some(room) = client_data.room else {
                 send(&s, &MakeTrickResponse::NotInRoom);
                 return;
