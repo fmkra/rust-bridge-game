@@ -35,9 +35,11 @@ use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 use state::{RoomState, ServerState};
+use utils::{notify, notify_others, send};
 
 mod handlers;
 mod state;
+mod utils;
 
 #[derive(Debug, Clone)]
 struct ClientData {
@@ -66,11 +68,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // TODO: regex filter username string
 
                 if s.extensions.get::<ClientData>().is_some() {
-                    s.emit(LoginResponse::MSG_TYPE, &LoginResponse::UserAlreadyLoggedIn).unwrap();
+                    send(&s, &LoginResponse::UserAlreadyLoggedIn);
                 }
 
                 if !state.write().await.add_user(data.user.clone()) {
-                    s.emit(LoginResponse::MSG_TYPE, &LoginResponse::UsernameAlreadyExists).unwrap();
+                    send(&s, &LoginResponse::UsernameAlreadyExists);
                     return;
                 }
 
@@ -80,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 s.extensions.insert(client_data);
 
-                s.emit(LoginResponse::MSG_TYPE, &LoginResponse::Ok).unwrap();
+                send(&s, &LoginResponse::Ok);
 
                 info!("User \"{}\" logged in", data.user.get_username());
             },
@@ -90,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ListRoomsMessage::MSG_TYPE,
             |s: SocketRef, state: State<ServerState>| async move {
                 let rooms = state.read().await.get_room_list().await;
-                s.emit(ListRoomsResponse::MSG_TYPE, &ListRoomsResponse { rooms }).unwrap();
+                send(&s, &ListRoomsResponse { rooms });
             },
         );
 
@@ -98,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             RegisterRoomMessage::MSG_TYPE,
             |s: SocketRef, Data::<RegisterRoomMessage>(data), state: State<ServerState>| async move {
                 let Some(client_data) = s.extensions.get::<ClientData>() else {
-                    s.emit(RegisterRoomResponse::MSG_TYPE, &RegisterRoomResponse::Unauthenticated).unwrap();
+                    send(&s, &RegisterRoomResponse::Unauthenticated);
                     return;
                 };
 
@@ -110,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .add_room(data.room_info)
                     .await;
 
-                s.emit(RegisterRoomMessage::MSG_TYPE, &message).unwrap();
+                send(&s, &message);
 
                 if message == RegisterRoomResponse::Ok {
                     info!(
@@ -126,19 +128,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             JoinRoomMessage::MSG_TYPE,
             |s: SocketRef, Data::<JoinRoomMessage>(data), state: State<ServerState>| async move {
                 let Some(mut client_data) = s.extensions.get::<ClientData>() else {
-                    s.emit(JoinRoomResponse::MSG_TYPE, &JoinRoomResponse::Unauthenticated).unwrap();
+                    send(&s, &JoinRoomResponse::Unauthenticated);
                     return;
                 };
 
                 if client_data.room.is_some() {
-                    s.emit(JoinRoomResponse::MSG_TYPE, &JoinRoomResponse::AlreadyInRoom).unwrap();
+                    send(&s, &JoinRoomResponse::AlreadyInRoom);
                     return;
                 }
 
                 let room_id = data.room_id.clone();
 
                 let Some(room_state) = state.read().await.get_room(&room_id).await else {
-                    s.emit(JoinRoomResponse::MSG_TYPE, &JoinRoomResponse::RoomNotFound).unwrap();
+                    send(&s, &JoinRoomResponse::RoomNotFound);
                     return;
                 };
 
@@ -148,10 +150,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let user = client_data.user.clone();
                 s.extensions.insert(client_data);
 
-                let room_wrapper = RoomWrapper(room_id.clone());
-                s.join(room_wrapper.clone()).unwrap();
+                s.join(RoomWrapper(room_id.clone())).unwrap();
 
-                s.emit(JoinRoomResponse::MSG_TYPE, &JoinRoomResponse::Ok).unwrap();
+                send(&s, &JoinRoomResponse::Ok);
 
                 info!(
                     "User \"{}\" joined room \"{}\"",
@@ -160,7 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
 
                 let msg = JoinRoomNotification { user };
-                s.to(room_wrapper).emit(JoinRoomNotification::MSG_TYPE, &msg).unwrap();
+                notify_others(&s, &room_id, &msg);
             },
         );
 
@@ -176,22 +177,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 client_data.room = None;
                 s.extensions.insert(client_data.clone());
 
-                s.emit(LeaveRoomResponse::MSG_TYPE, &LeaveRoomResponse::Ok).ok();
+                send(&s, &LeaveRoomResponse::Ok);
             }
 
             info!("User \"{}\" left room \"{}\"", client_data.user.get_username(), room_id.as_str());
 
-            s.to(RoomWrapper(room_id)).emit(LeaveRoomNotification::MSG_TYPE, &LeaveRoomNotification{user: client_data.user}).ok();
+            notify_others(&s, &room_id, &LeaveRoomNotification{user: client_data.user});
             s.leave_all().ok();
         };
 
         s.on(LeaveRoomMessage::MSG_TYPE, move |s: SocketRef| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
-                s.emit(LeaveRoomMessage::MSG_TYPE, &LeaveRoomResponse::Unauthenticated).unwrap();
+                send(&s, &LeaveRoomResponse::Unauthenticated);
                 return;
             };
             let Some(room) = client_data.room.clone() else {
-                s.emit(LeaveRoomMessage::MSG_TYPE, &LeaveRoomResponse::NotInRoom).unwrap();
+                send(&s, &LeaveRoomResponse::NotInRoom);
                 return;
             };
 
@@ -200,11 +201,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         s.on(ListPlacesMessage::MSG_TYPE, |s: SocketRef| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
-                s.emit(ListPlacesResponse::MSG_TYPE, &ListPlacesResponse::Unauthenticated).unwrap();
+                send(&s, &ListPlacesResponse::Unauthenticated);
                 return;
             };
             let Some(room) = client_data.room else {
-                s.emit(ListPlacesResponse::MSG_TYPE, &ListPlacesResponse::NotInRoom).unwrap();
+                send(&s, &ListPlacesResponse::NotInRoom);
                 return;
             };
 
@@ -213,18 +214,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 room_lock.get_player_positions()
             };
 
-            s.emit(ListPlacesResponse::MSG_TYPE, &ListPlacesResponse::Ok(player_positions)).unwrap();
+            send(&s, &ListPlacesResponse::Ok(player_positions));
         });
 
         s.on(
             SelectPlaceMessage::MSG_TYPE,
             |s: SocketRef, Data::<SelectPlaceMessage>(data)| async move {
                 let Some(client_data) = s.extensions.get::<ClientData>() else {
-                    s.emit(SelectPlaceResponse::MSG_TYPE, &SelectPlaceResponse::Unauthenticated).unwrap();
+                    send(&s, &SelectPlaceResponse::Unauthenticated);
                     return;
                 };
                 let Some(room) = client_data.room else {
-                    s.emit(SelectPlaceResponse::MSG_TYPE, &SelectPlaceResponse::NotInRoom).unwrap();
+                    send(&s, &SelectPlaceResponse::NotInRoom);
                     return;
                 };
 
@@ -246,7 +247,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     });
 
                 if !is_place_free {
-                    s.emit(SelectPlaceResponse::MSG_TYPE, &SelectPlaceResponse::PlaceAlreadyTaken).unwrap();
+                    send(&s, &SelectPlaceResponse::PlaceAlreadyTaken);
                     return;
                 }
 
@@ -256,13 +257,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 info!("User \"{}\" selected place {} in room \"{}\"", client_data.user.get_username(), position_str, room_id.as_str());
 
-                s.emit(SelectPlaceResponse::MSG_TYPE, &SelectPlaceResponse::Ok).unwrap();
+                send(&s, &SelectPlaceResponse::Ok);
 
-                let msg = SelectPlaceNotification {
+                notify_others(&s, &room_id, &SelectPlaceNotification {
                     user: client_data.user,
                     position: data.position,
-                };
-                s.to(RoomWrapper(room_id.clone())).emit(SelectPlaceNotification::MSG_TYPE, &msg).unwrap();
+                });
 
                 if let Some(player_position) = player_position_all_taken {
                     info!("Game started in room \"{}\"", room_id.as_str());
@@ -287,29 +287,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     if previous_game_state == GameState::WaitingForPlayers {
                         // Game starts
-                        s.within(RoomWrapper(room_id.clone())).emit(GameStartedNotification::MSG_TYPE, &msg).unwrap();
+                        notify(&s, &room_id, &msg);
 
-                        s.within(RoomWrapper(room_id.clone())).emit(AskBidNotification::MSG_TYPE, &msg2).unwrap();
+                        notify(&s, &room_id, &msg2);
                     } else {
                         // Game is already running and is resumed now
                         // TODO: maybe when 2 players leave, let first one in before 2nd joins
-                        s.emit(GameStartedNotification::MSG_TYPE, &msg).unwrap();
+                        send(&s, &msg);
 
                         if previous_game_state == GameState::Auction {
-                            s.emit(AskBidNotification::MSG_TYPE, &msg2).unwrap();
+                            send(&s, &msg2);
                         } else {
                             let room_lock = room.read().await;
 
-                            s.emit(AuctionFinishedNotification::MSG_TYPE, &Some(AuctionFinishedNotificationInner {
+                            send(&s, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
                                 winner: room_lock.game.max_bidder,
                                 max_bid: room_lock.game.max_bid,
                                 game_value: room_lock.game.game_value,
-                            })).unwrap();
+                            }));
 
-                            s.emit(AskTrickNotification::MSG_TYPE, &AskTrickNotification {
+                            send(&s, &AskTrickNotification {
                                 player: room_lock.game.current_player,
                                 cards: room_lock.game.current_trick.clone(),
-                            }).unwrap();
+                            });
                         }
                     }
                 }
@@ -318,11 +318,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         s.on(GetCardsMessage::MSG_TYPE, |s: SocketRef| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
-                s.emit(GetCardsResponse::MSG_TYPE, &GetCardsResponse::Unauthenticated).unwrap();
+                send(&s, &GetCardsResponse::Unauthenticated);
                 return;
             };
             let Some(room) = client_data.room else {
-                s.emit(GetCardsResponse::MSG_TYPE, &GetCardsResponse::NotInRoom).unwrap();
+                send(&s, &GetCardsResponse::NotInRoom);
                 return;
             };
 
@@ -330,7 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let room_lock = room.read().await;
                 let position = room_lock.find_player_position(&client_data.user);
                 let Some(position) = position else {
-                    s.emit(GetCardsResponse::MSG_TYPE, &GetCardsResponse::SpectatorNotAllowed).unwrap();
+                    send(&s, &GetCardsResponse::SpectatorNotAllowed);
                     return;
                 };
                 let cards = room_lock.game.get_cards(&position).clone();
@@ -338,63 +338,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let msg = GetCardsResponse::Ok { cards, position };
-            s.emit(GetCardsResponse::MSG_TYPE, &msg).unwrap();
+            send(&s, &msg);
         });
 
         s.on(MakeBidMessage::MSG_TYPE, |s: SocketRef, Data::<MakeBidMessage>(data)| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
-                s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::Unauthenticated).unwrap();
+                send(&s, &MakeBidResponse::Unauthenticated);
                 return;
             };
             let Some(room) = client_data.room else {
-                s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::NotInRoom).unwrap();
+                send(&s, &MakeBidResponse::NotInRoom);
                 return;
             };
 
             let mut room_lock = room.write().await;
 
             let Some(player) = room_lock.find_player_position(&client_data.user) else {
-                s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::SpectatorNotAllowed).unwrap();
+                send(&s, &MakeBidResponse::SpectatorNotAllowed);
                 return;
             };
 
             match room_lock.game.place_bid(&player, data.bid) {
                 BidStatus::Error(bid_error) => match bid_error {
                     BidError::GameStateMismatch => {
-                        s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::AuctionNotInProcess).unwrap();
+                        send(&s, &MakeBidResponse::AuctionNotInProcess);
                     },
                     BidError::PlayerOutOfTurn => {
-                        s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::NotYourTurn).unwrap();
+                        send(&s, &MakeBidResponse::NotYourTurn);
                     },
                     BidError::WrongBid | BidError::CantDouble | BidError::CantRedouble => { // TODO: maybe handle double separately
-                        s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::InvalidBid).unwrap();
+                        send(&s, &MakeBidResponse::InvalidBid);
                     },
                 },
                 next_state => {
-                    s.emit(MakeBidResponse::MSG_TYPE, &MakeBidResponse::Ok).unwrap();
+                    send(&s, &MakeBidResponse::Ok);
 
-                    let room_handle = RoomWrapper(room_lock.info.id.clone());
                     if next_state == BidStatus::Auction {
-                        s.within(room_handle).emit(AskBidNotification::MSG_TYPE, &AskBidNotification {
+                        notify(&s, &room_lock.info.id, &AskBidNotification {
                             player: room_lock.game.current_player,
                             max_bid: room_lock.game.max_bid,
-                        }).unwrap();
+                        });
                     } else {
-                        s.within(room_handle.clone()).emit(AuctionFinishedNotification::MSG_TYPE, &Some(AuctionFinishedNotificationInner {
+                        notify(&s, &room_lock.info.id, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
                             winner: room_lock.game.max_bidder,
                             max_bid: room_lock.game.max_bid,
                             game_value: room_lock.game.game_value,
-                        })).unwrap();
+                        }));
 
                         if next_state == BidStatus::Finished {
                             // 4 passes
 
-                            s.within(room_handle.clone()).emit(GameFinishedNotification::MSG_TYPE, &GameFinishedNotification{result: None}).unwrap();
+                            notify(&s, &room_lock.info.id, &GameFinishedNotification{result: None});
                         } else {
-                            s.within(room_handle).emit(AskTrickNotification::MSG_TYPE, &AskTrickNotification {
+                            notify(&s, &room_lock.info.id, &AskTrickNotification {
                                 player: room_lock.game.current_player,
                                 cards: room_lock.game.current_trick.clone(),
-                            }).unwrap();
+                            });
                         }
                     }
                 },
@@ -403,25 +402,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         s.on(MakeTrickMessage::MSG_TYPE, |s: SocketRef, Data::<MakeTrickMessage>(data)| async move {
             let Some(client_data) = s.extensions.get::<ClientData>() else {
-                s.emit(MakeTrickResponse::MSG_TYPE, &MakeTrickResponse::Unauthenticated).unwrap();
+                send(&s, &MakeTrickResponse::Unauthenticated);
                 return;
             };
             let Some(room) = client_data.room else {
-                s.emit(MakeTrickResponse::MSG_TYPE, &MakeTrickResponse::NotInRoom).unwrap();
+                send(&s, &MakeTrickResponse::NotInRoom);
                 return;
             };
 
             let mut room_lock = room.write().await;
 
             let Some(player) = room_lock.find_player_position(&client_data.user) else {
-                s.emit(MakeTrickResponse::MSG_TYPE, &MakeTrickResponse::SpectatorNotAllowed).unwrap();
+                send(&s, &MakeTrickResponse::SpectatorNotAllowed);
                 return;
             };
 
             let room_id = room_lock.info.id.clone();
 
             let trick_result = room_lock.game.trick(&player, &data.card);
-            s.emit(MakeTrickResponse::MSG_TYPE, &MakeTrickResponse::from(&trick_result)).unwrap();
+            send(&s, &MakeTrickResponse::from(&trick_result));
 
             match trick_result {
                 TrickStatus::Error(_) => {
@@ -429,7 +428,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 TrickStatus::TrickInProgress => {
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
-                        s.within(RoomWrapper(room_id.clone())).emit(DummyCardsNotification::MSG_TYPE, &DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone())).unwrap();
+                        notify(&s, &room_id, &DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone()));
                     }
                 }
                 TrickStatus::TrickFinished(trick_state) => {
@@ -448,10 +447,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            s.within(RoomWrapper(room_id)).emit(AskTrickNotification::MSG_TYPE, &AskTrickNotification {
+            notify(&s, &room_id, &AskTrickNotification {
                 player: room_lock.game.current_player,
                 cards: room_lock.game.current_trick.clone(),
-            }).unwrap();
+            });
         });
 
         // s.on(
