@@ -401,8 +401,9 @@ fn game_one_deal() {
         Player::North,
     );
 
-    // North and South received 450 points for this deal
-    let deal_finished = DealFinished::new(trick_state, [450, 0, 450, 0], [1, 0, 1, 0], false);
+    // North and South received 450 penalty points for this deal
+    // As West was the max_bidder, he failed to win the contract, so there's 0 wins.
+    let deal_finished = DealFinished::new(trick_state, [450, 0, 450, 0], [0, 0, 0, 0], false);
 
     assert_eq!(
         TrickStatus::DealFinished(deal_finished),
