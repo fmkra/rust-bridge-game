@@ -1,4 +1,5 @@
 use common::*;
+use game::DealFinished;
 
 #[test]
 fn game_trick_max() {
@@ -194,8 +195,6 @@ fn game_place_trick() {
     );
 
     let mut trick_state = TrickState::new(
-        GameState::Tricking,
-        [0, 0, 0, 0],
         vec![
             Card::new(Rank::Jack, Suit::Spades),
             Card::new(Rank::Queen, Suit::Spades),
@@ -246,8 +245,6 @@ fn game_place_trick() {
     );
 
     trick_state = TrickState::new(
-        GameState::Tricking,
-        [0,0,0,0],
         vec![
             Card::new(Rank::Two, Suit::Spades),
             Card::new(Rank::Two, Suit::Clubs),
@@ -328,9 +325,15 @@ fn game_one_deal() {
             Bid::new(3, BidType::Trump(Suit::Clubs)).unwrap()
         )
     );
-    assert_eq!(BidStatus::Auction,game.place_bid(&Player::North, Bid::Pass));
+    assert_eq!(
+        BidStatus::Auction,
+        game.place_bid(&Player::North, Bid::Pass)
+    );
     assert_eq!(BidStatus::Auction, game.place_bid(&Player::East, Bid::Pass));
-    assert_eq!(BidStatus::Tricking,game.place_bid(&Player::South, Bid::Pass));
+    assert_eq!(
+        BidStatus::Tricking,
+        game.place_bid(&Player::South, Bid::Pass)
+    );
 
     // Tricking
     for rank_u8 in 2..=13 {
@@ -357,8 +360,6 @@ fn game_one_deal() {
         );
 
         let trick_state = TrickState::new(
-            GameState::Tricking,
-            [0, 0, 0, 0],
             vec![
                 Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Clubs),
                 Card::new(Rank::from_u8(rank_u8).unwrap(), Suit::Diamonds),
@@ -390,10 +391,7 @@ fn game_one_deal() {
         game.trick(&Player::South, &Card::new(Rank::Ace, Suit::Hearts))
     );
 
-    // North and South received 450 points for this deal
     let trick_state = TrickState::new(
-        GameState::Auction,
-        [450, 0, 450, 0],
         vec![
             Card::new(Rank::Ace, Suit::Clubs),
             Card::new(Rank::Ace, Suit::Diamonds),
@@ -403,8 +401,11 @@ fn game_one_deal() {
         Player::North,
     );
 
+    // North and South received 450 points for this deal
+    let deal_finished = DealFinished::new(trick_state, [450, 0, 450, 0], [1, 0, 1, 0], false);
+
     assert_eq!(
-        TrickStatus::TrickFinished(trick_state),
+        TrickStatus::DealFinished(deal_finished),
         game.trick(&Player::West, &Card::new(Rank::Ace, Suit::Spades))
     );
 
