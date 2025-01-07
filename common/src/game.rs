@@ -269,8 +269,6 @@ impl Game {
                 // e.g. any pair has won 2 deals, then the winner is the one who has more points.
                 self.distribute_points();
 
-                let taker = self.current_player;
-
                 if self.state != GameState::Finished {
                     self.trick_no = 0;
                     self.state = GameState::Auction;
