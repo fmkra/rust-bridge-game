@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use common::{
     message::client_message::{RegisterRoomMessage, REGISTER_ROOM_MESSAGE},
-    room::{RoomInfo, RoomId, Visibility},
+    room::{RoomId, RoomInfo, Visibility},
 };
 
 pub fn create_room_ui(
@@ -44,10 +44,7 @@ pub fn create_room_ui(
             let socket_clone = socket.clone();
             runtime.spawn(async move {
                 socket_clone
-                    .emit(
-                        REGISTER_ROOM_MESSAGE,
-                        to_string(&msg).unwrap(),
-                    )
+                    .emit(REGISTER_ROOM_MESSAGE, to_string(&msg).unwrap())
                     .await
                     .unwrap();
             });

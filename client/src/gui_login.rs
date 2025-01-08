@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use serde_json::to_string;
-use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
+use macroquad::input::KeyCode;
 use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
-use macroquad::input::KeyCode;
+use serde_json::to_string;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
+use tokio::sync::Mutex;
 
 use common::{
     message::client_message::{LoginMessage, LOGIN_MESSAGE},
@@ -27,8 +27,10 @@ pub fn login_ui(
         ui.label(None, "Enter your nickname:");
         ui.input_text(hash!(), "Nickname:", &mut nickname);
 
-        let mut nickname_lock = nickname_arc.blocking_lock();
-        *nickname_lock = nickname.clone();
+        {
+            let mut nickname_lock = nickname_arc.blocking_lock();
+            *nickname_lock = nickname.clone();
+        }
 
         if ui.button(None, "Confirm") || is_key_pressed(KeyCode::Enter) {
             let login_message = LoginMessage {

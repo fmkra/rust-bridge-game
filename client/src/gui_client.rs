@@ -1,17 +1,19 @@
 use std::{
-    collections::VecDeque, io::Write, sync::{
+    collections::VecDeque,
+    io::Write,
+    sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    }
+    },
 };
 
 use futures_util::FutureExt;
 use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
-use tokio::sync::{mpsc, Mutex, Notify};
-use tokio::sync::mpsc::{Sender, Receiver};
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::{mpsc, Mutex, Notify};
 
 use common::{
     message::{
@@ -44,23 +46,28 @@ use common::{
     Bid, BidType, Card, Player, Rank, Suit,
 };
 
+use crate::gui_notification::Notification;
+
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum GuiClientState {
     Logging,
     InLobby,
     CreatingRoom,
     InRoom,
-    InSeat,
     Playing,
 }
 
 pub struct GuiClient {
     pub name: Arc<Mutex<Option<String>>>,
     pub state: Arc<Mutex<GuiClientState>>,
-    pub errors: Arc<Mutex<VecDeque<String>>>,
+    pub notifications: Arc<Mutex<VecDeque<Notification>>>,
     pub rooms: Arc<Mutex<Vec<String>>>,
-    pub room_name: Arc<Mutex<Option<String>>>,
-
+    pub selected_room_name: Arc<Mutex<Option<String>>>,
+    pub seats: Arc<Mutex<[Option<User>; 4]>>,
+    pub selected_seat: Arc<Mutex<Option<Player>>>,
+    pub card_list: Arc<Mutex<Option<Vec<Card>>>>,
+    pub placed_bid: Arc<Mutex<Option<Bid>>>,
+    pub placed_trick: Arc<Mutex<Option<Card>>>,
     // selected_card: Arc<Mutex<Option<Card>>>,
     // selected_card_clone: Arc<Mutex<Option<Card>>>,
     // card_list: Arc<Mutex<Option<Vec<Card>>>>,
@@ -83,9 +90,14 @@ impl GuiClient {
         GuiClient {
             name: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(GuiClientState::Logging)),
-            errors: Arc::new(Mutex::new(VecDeque::new())),
+            notifications: Arc::new(Mutex::new(VecDeque::new())),
             rooms: Arc::new(Mutex::new(Vec::new())),
-            room_name: Arc::new(Mutex::new(None)),
+            selected_room_name: Arc::new(Mutex::new(None)),
+            seats: Arc::new(Mutex::new([None, None, None, None])),
+            selected_seat: Arc::new(Mutex::new(None)),
+            card_list: Arc::new(Mutex::new(None)),
+            placed_bid: Arc::new(Mutex::new(None)),
+            placed_trick: Arc::new(Mutex::new(None)),
         }
     }
 }

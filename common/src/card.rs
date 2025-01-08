@@ -97,10 +97,10 @@ impl Suit {
 
     pub fn to_str(&self) -> &str {
         match self {
-            Suit::Clubs => "♣",
-            Suit::Diamonds => "♦",
-            Suit::Hearts => "♥",
-            Suit::Spades => "♠",
+            Suit::Clubs => "C",
+            Suit::Diamonds => "D",
+            Suit::Hearts => "H",
+            Suit::Spades => "S",
         }
     }
 }

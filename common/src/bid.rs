@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::card::Suit;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
@@ -54,6 +54,18 @@ impl Bid {
     }
 }
 
+impl fmt::Display for Bid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Bid::Pass => write!(f, "Pass"),
+            Bid::Double => write!(f, "Double"),
+            Bid::Redouble => write!(f, "Redouble"),
+            Bid::Play(number, BidType::Trump(suit)) => write!(f, "{} of {}", number, suit.to_str()),
+            Bid::Play(number, BidType::NoTrump) => write!(f, "{} No Trump", number),
+        }
+    }
+}
+
 impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
         let self_u8 = self.to_u8();
@@ -67,10 +79,8 @@ impl Ord for Bid {
                         Ordering::Equal => self_type.cmp(other_type),
                         other => other,
                     }
-                },
-                _ => {
-                    Ordering::Equal
-                },
+                }
+                _ => Ordering::Equal,
             }
         } else {
             Ordering::Greater
