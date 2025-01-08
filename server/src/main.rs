@@ -41,6 +41,7 @@ use socketioxide::{
     SocketIo,
 };
 use tokio::sync::RwLock;
+use tokio::time::{sleep, Duration};
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
@@ -471,11 +472,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         },
                         TrickStatus::TrickInProgress => {
                             if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
-                                s.within(RoomWrapper(room_id.clone())).emit(DUMMY_CARDS_NOTIFICATION, &DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone())).unwrap();
+                                s.within(RoomWrapper(room_id.clone())).emit(
+                                    DUMMY_CARDS_NOTIFICATION, 
+                                    &DummyCardsNotification::new(
+                                        room_lock.game.get_dummy_cards().unwrap().clone(), 
+                                        room_lock.game.get_dummy_player().unwrap()
+                                    )
+                                ).unwrap();
                             }
                         }
                         _ => {}
                     }
+
+                    sleep(Duration::from_secs(2)).await;
 
                     s.within(RoomWrapper(room_id)).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
                         player: room_lock.game.current_player,

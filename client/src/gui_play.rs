@@ -93,6 +93,9 @@ pub fn play_ui(
     cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
     bid_arc: Arc<Mutex<Option<Bid>>>,
     trick_arc: Arc<Mutex<Option<Card>>>,
+    current_player_arc: Arc<Mutex<Option<Player>>>,
+    dummy_cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
+    dummy_player_arc: Arc<Mutex<Option<Player>>>,
     bid_textures: &HashMap<String, Texture2D>,
     card_textures: &HashMap<String, Texture2D>,
 ) {
@@ -117,6 +120,22 @@ pub fn play_ui(
         seats_lock.clone()
     };
 
+    // Retrieve current player
+    let current_player = {
+        let current_player_lock = current_player_arc.blocking_lock();
+        *current_player_lock
+    };
+
+    let dummy_player = {
+        let dummy_player_lock = dummy_player_arc.blocking_lock();
+        *dummy_player_lock
+    };
+
+    let dummy_cards = {
+        let dummy_cards_lock = dummy_cards_arc.blocking_lock();
+        dummy_cards_lock.clone()
+    };
+
     // Retrieve player's cards
     let player_cards = {
         let cards_lock = cards_arc.blocking_lock();
@@ -126,8 +145,8 @@ pub fn play_ui(
     // Dynamic rotation logic to keep the player's seat at the bottom
     let bottom_player = player_position;
     let right_player = player_position.skip(3); // The player to the right
-    let top_player = player_position.skip(2); // The player across
-    let left_player = player_position.skip(1); // The player to the left
+    let top_player = player_position.skip(2);   // The player across
+    let left_player = player_position.skip(1);  // The player to the left
 
     // Determine usernames for each position
     let bottom_username = seats[bottom_player.to_usize()]
@@ -157,17 +176,33 @@ pub fn play_ui(
     let rect_height = 50.0;
 
     // Draw the square
-    draw_rectangle_lines(square_x, square_y, square_size, square_size, 5.0, WHITE);
+    draw_rectangle_lines(
+        square_x,
+        square_y,
+        square_size,
+        square_size,
+        5.0,
+        WHITE,
+    );
 
     // Text size for labels
-    let text_size = 20.0;
+    let text_size = 30.0;
 
     // Helper function to center text
-    let center_text = |text: &str, rect_x: f32, rect_y: f32, rect_width: f32, rect_height: f32| {
+    let center_text = |text: &str, rect_x: f32, rect_y: f32, rect_width: f32, rect_height: f32, color: Color| {
         let text_width = measure_text(text, None, text_size as u16, 1.0).width;
         let text_x = rect_x + (rect_width - text_width) / 2.0;
         let text_y = rect_y + (rect_height + text_size) / 2.0 - 5.0;
-        draw_text(text, text_x, text_y, text_size, WHITE);
+        draw_text(text, text_x, text_y, text_size, color);
+    };
+
+    // Determine text color based on the current player
+    let get_text_color = |player: Player| {
+        if Some(player) == current_player {
+            BLUE
+        } else {
+            WHITE
+        }
     };
 
     // Bottom (Your seat)
@@ -184,6 +219,7 @@ pub fn play_ui(
         square_y + square_size,
         rect_width,
         rect_height,
+        get_text_color(bottom_player),
     );
 
     // Right
@@ -200,6 +236,7 @@ pub fn play_ui(
         square_y + (square_size - rect_width) / 2.0,
         rect_height,
         rect_width,
+        get_text_color(right_player),
     );
 
     // Top
@@ -216,6 +253,7 @@ pub fn play_ui(
         square_y - rect_height,
         rect_width,
         rect_height,
+        get_text_color(top_player),
     );
 
     // Left
@@ -232,7 +270,47 @@ pub fn play_ui(
         square_y + (square_size - rect_width) / 2.0,
         rect_height,
         rect_width,
+        get_text_color(left_player),
     );
+
+    if let Some(dummy) = dummy_player {
+        if dummy != bottom_player {
+            if let Some(cards) = dummy_cards {
+                let dummy_x = match dummy {
+                    p if p == right_player => square_x + square_size + 20.0, // Right
+                    p if p == top_player => square_x + (square_size - rect_width) / 2.0, // Top
+                    p if p == left_player => square_x - 70.0, // Left
+                    _ => square_x, // Default
+                };
+                let dummy_y = match dummy {
+                    p if p == top_player => square_y - 120.0, // Top
+                    p if p == left_player || p == right_player => square_y + (square_size - rect_width) / 2.0, // Left/Right
+                    _ => square_y + square_size + 20.0, // Default
+                };
+                let rotation: f32 = match dummy {
+                    p if p == left_player || p == right_player => 90.0,
+                    _ => 0.0,
+                };
+
+                for (i, card) in cards.iter().enumerate() {
+                    let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
+                    if let Some(texture) = card_textures.get(&card_name) {
+                        draw_texture_ex(
+                            texture,
+                            dummy_x + i as f32 * 30.0,
+                            dummy_y,
+                            WHITE,
+                            DrawTextureParams {
+                                dest_size: Some(Vec2::new(60.0, 90.0)),
+                                rotation: rotation.to_radians(),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     let grid_x = screen_width() - 350.0; // Start of grid on the top-right corner
     let grid_y = 50.0; // Starting y position
@@ -271,8 +349,8 @@ pub fn play_ui(
                     && mouse_position().1 >= click_y
                     && mouse_position().1 <= click_y + grid_cell_size
                 {
-                    // Unwrap is valid, as row must be between 0 and 7, and bid_types[col] are of valid types
-                    let placed_bid = Bid::new(row, bid_types[col]).unwrap();
+                    // Unwrap is valid, as row must be between 1 and 7, and bid_types[col] are of valid types
+                    let placed_bid = Bid::new(row + 1, bid_types[col]).unwrap();
                     place_bid(&socket, runtime, &bid_arc, placed_bid);
 
                     println!("Placed bid: {:?}", placed_bid);

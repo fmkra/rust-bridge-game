@@ -451,7 +451,7 @@ impl Game {
         }
     }
 
-    pub fn get_dummy(&self) -> Option<&Vec<Card>> {
+    pub fn get_dummy_cards(&self) -> Option<&Vec<Card>> {
         if self.state != GameState::Tricking {
             return None;
         }
@@ -461,6 +461,18 @@ impl Game {
         }
         let dummy_usize = self.max_bidder.next().next().to_usize();
         Some(&self.player_cards[dummy_usize])
+    }
+
+    pub fn get_dummy_player(&self) -> Option<Player> {
+        if self.state != GameState::Tricking {
+            return None;
+        }
+        if self.trick_no == 0 && self.current_trick.is_empty() {
+            // No cards were given, the dummy doesn't reveal its' cards yet.
+            return None;
+        }
+        let dummy = self.max_bidder.get_partner();
+        Some(dummy)
     }
 
     pub fn get_cards(&self, player: &Player) -> &Vec<Card> {

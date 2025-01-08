@@ -68,6 +68,10 @@ pub struct GuiClient {
     pub card_list: Arc<Mutex<Option<Vec<Card>>>>,
     pub placed_bid: Arc<Mutex<Option<Bid>>>,
     pub placed_trick: Arc<Mutex<Option<Card>>>,
+    pub game_max_bid: Arc<Mutex<Option<Bid>>>,
+    pub game_current_player: Arc<Mutex<Option<Player>>>,
+    pub dummy_cards: Arc<Mutex<Option<Vec<Card>>>>,
+    pub dummy_player: Arc<Mutex<Option<Player>>>,
     // selected_card: Arc<Mutex<Option<Card>>>,
     // selected_card_clone: Arc<Mutex<Option<Card>>>,
     // card_list: Arc<Mutex<Option<Vec<Card>>>>,
@@ -98,6 +102,10 @@ impl GuiClient {
             card_list: Arc::new(Mutex::new(None)),
             placed_bid: Arc::new(Mutex::new(None)),
             placed_trick: Arc::new(Mutex::new(None)),
+            game_max_bid: Arc::new(Mutex::new(None)),
+            game_current_player: Arc::new(Mutex::new(None)),
+            dummy_cards: Arc::new(Mutex::new(None)),
+            dummy_player: Arc::new(Mutex::new(None)),
         }
     }
 }

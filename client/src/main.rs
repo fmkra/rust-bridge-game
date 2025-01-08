@@ -38,11 +38,17 @@ use common::{
             JoinRoomNotification,
             LeaveRoomNotification,
             SelectPlaceNotification,
+            AuctionFinishedNotification,
+            DummyCardsNotification,
+            AskTrickNotification,
             ASK_BID_NOTIFICATION,
             GAME_STARTED_NOTIFICATION,
             JOIN_ROOM_NOTIFICATION,
             LEAVE_ROOM_NOTIFICATION,
             SELECT_PLACE_NOTIFICATION,
+            AUCTION_FINISHED_NOTIFICATION,
+            DUMMY_CARDS_NOTIFICATION,
+            ASK_TRICK_NOTIFICATION,
         }, server_response::{
             GetCardsResponse,
             JoinRoomResponse,
@@ -81,10 +87,11 @@ async fn main() {
     let input_selected_room_name_clone_1 = input_selected_room_name_clone.clone();
     let input_selected_seat: Arc<Mutex<Option<Player>>> = Arc::new(Mutex::new(None));
     let input_selected_seat_clone = input_selected_seat.clone();
-    let input_bid: Arc<Mutex<Option<Bid>>> = Arc::new(Mutex::new(None));
-    let input_bid_clone = input_bid.clone();
-    let input_trick: Arc<Mutex<Option<Card>>> = Arc::new(Mutex::new(None));
-    let input_trick_clone = input_trick.clone();
+    let input_placed_bid: Arc<Mutex<Option<Bid>>> = Arc::new(Mutex::new(None));
+    let input_placed_bid_clone = input_placed_bid.clone();
+    let input_placed_bid_clone_1 = input_placed_bid.clone();
+    let input_placed_trick: Arc<Mutex<Option<Card>>> = Arc::new(Mutex::new(None));
+    let input_placed_trick_clone = input_placed_trick.clone();
     // let input_selected_bid = 
 
     // Clones of GuiClient Arc fields
@@ -113,6 +120,14 @@ async fn main() {
     let client_selected_seat_clone_1 = client.selected_seat.clone();
     let client_selected_seat_clone_2 = client.selected_seat.clone();
     let client_card_list_clone = client.card_list.clone();
+    let client_placed_bid_clone = client.placed_bid.clone();
+    let client_placed_trick_clone = client.placed_trick.clone();
+    let client_game_max_bid_clone = client.game_max_bid.clone();
+    let client_game_current_player_clone = client.game_current_player.clone();
+    let client_game_current_player_clone_1 = client.game_current_player.clone();
+    let client_dummy_cards_clone = client.dummy_cards.clone();
+    let client_dummy_cards_clone_1 = client.dummy_cards.clone();
+    let client_dummy_player_clone = client.dummy_player.clone();
 
     // Connect to the server
     let socket = runtime.block_on(async {
@@ -465,6 +480,7 @@ async fn main() {
                 })
                 .on(ASK_BID_NOTIFICATION, move |payload, _| {
                     let notifications = client_notifications_clone_9.clone();
+                    let client_game_current_player_arc = client_game_current_player_clone.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -480,6 +496,10 @@ async fn main() {
                                 String::from(format!("Current max bid is {}", msg.max_bid))
                             },
                         };
+                        {
+                            let mut client_game_current_player_val = client_game_current_player_arc.lock().await;
+                            *client_game_current_player_val = Some(msg.player);
+                        }
                         create_info_notification(bid_message,notifications.clone());
                         create_info_notification(
                         String::from(
@@ -494,6 +514,8 @@ async fn main() {
                     .boxed()
                 })
                 .on(MAKE_BID_RESPONSE, move |payload, _| {
+                    let client_placed_bid_arc = client_placed_bid_clone.clone();
+                    let input_placed_bid_arc = input_placed_bid_clone_1.clone();
                     let notifications = client_notifications_clone_10.clone();
                     async move {
                         let msg = match payload {
@@ -504,7 +526,10 @@ async fn main() {
                         };
                         match msg {
                             MakeBidResponse::Ok => {
-
+                                let mut client_placed_bid_val = client_placed_bid_arc.lock().await;
+                                let input_placed_bid = input_placed_bid_arc.lock().await;
+                                *client_placed_bid_val = *input_placed_bid;
+                                println!("{:?}", *client_placed_bid_val);
                             },
                             MakeBidResponse::AuctionNotInProcess => {
                                 create_error_notification(String::from("Auction is not in process"),notifications);
@@ -523,6 +548,74 @@ async fn main() {
                             },
                             MakeBidResponse::InvalidBid => {
                                 create_error_notification(String::from("This bid is not valid"),notifications)
+                            }
+                        }
+                    }
+                    .boxed()
+                })
+                .on(AUCTION_FINISHED_NOTIFICATION, move |payload, _| {
+                    let client_game_max_bid_arc = client_game_max_bid_clone.clone();
+                    let client_game_current_player_arc = client_game_current_player_clone_1.clone();
+                    async move {
+                        let msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<AuctionFinishedNotification>(text[0].clone())
+                                    .unwrap()
+                            }
+                            _ => return,
+                        };
+                        let msg = msg.expect("No winner"); // TODO: 4 passes
+                        {
+                            let mut client_game_max_bid_val = client_game_max_bid_arc.lock().await;
+                            *client_game_max_bid_val = Some(msg.max_bid);
+                        }
+                        {
+                            let mut client_game_current_player_val = client_game_current_player_arc.lock().await;
+                            *client_game_current_player_val = Some(msg.winner);
+                        }
+                    }
+                    .boxed()
+                })
+                .on(DUMMY_CARDS_NOTIFICATION, move |payload, _| {
+                    let client_dummy_cards_arc = client_dummy_cards_clone.clone();
+                    let client_dummy_player_arc = client_dummy_player_clone.clone();
+                    async move {
+                        let msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<DummyCardsNotification>(text[0].clone()).unwrap()
+                            }
+                            _ => return,
+                        };
+                        {
+                            let mut client_dummy_cards_val = client_dummy_cards_arc.lock().await;
+                            *client_dummy_cards_val = Some(msg.cards);
+                        }
+                        {
+                            let mut client_dummy_player_val = client_dummy_player_arc.lock().await;
+                            *client_dummy_player_val = Some(msg.dummy);
+                        }
+
+                    }
+                    .boxed()
+                })
+                .on(ASK_TRICK_NOTIFICATION, move |payload, _| {
+                    let client_dummy_cards_arc = client_dummy_cards_clone_1.clone();
+                    async move {
+                        let msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<AskTrickNotification>(text[0].clone()).unwrap()
+                            }
+                            _ => return,
+                        };
+                        {
+                            let mut client_dummy_cards_val = client_dummy_cards_arc.lock().await;
+                            let client_dummy_cards_val_clone = client_dummy_cards_val.clone();
+
+                            if let Some(mut dummy_cards) = client_dummy_cards_val_clone {
+                                if let Some(card) = msg.cards.last() {
+                                    dummy_cards.retain(|c| c != card);
+                                }
+                                *client_dummy_cards_val = Some(dummy_cards);
                             }
                         }
                     }
@@ -581,8 +674,11 @@ async fn main() {
                     client.selected_seat.clone(),
                     client.seats.clone(),
                     client.card_list.clone(),
-                    input_bid_clone.clone(),
-                    input_trick_clone.clone(),
+                    input_placed_bid_clone.clone(),
+                    input_placed_trick_clone.clone(),
+                    client.game_current_player.clone(),
+                    client.dummy_cards.clone(),
+                    client.dummy_player.clone(),
                     &bid_textures,
                     &card_textures,
                 );
