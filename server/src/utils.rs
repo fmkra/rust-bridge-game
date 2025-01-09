@@ -1,3 +1,5 @@
+use std::{future::Future, pin::Pin};
+
 use common::{message::MessageTrait, room::RoomId};
 use serde::Serialize;
 use socketioxide::extract::SocketRef;
@@ -13,14 +15,20 @@ where
 }
 
 /// Send message to room with given `RoomId``
-pub fn notify<M>(socket: &SocketRef, room: &RoomId, message: &M)
+pub fn notify<M>(
+    socket: &SocketRef,
+    room: &RoomId,
+    message: M,
+) -> Box<dyn SendableNotification + Send + Sync>
 where
-    M: MessageTrait + Serialize,
+    M: MessageTrait + Serialize + SendableNotification + Send + Sync + 'static,
 {
     socket
         .within(RoomWrapper(room.clone()))
-        .emit(M::MSG_TYPE, message)
+        .emit(M::MSG_TYPE, &message)
         .unwrap();
+
+    Box::new(message)
 }
 
 /// Send message to everyone in room with given `RoomId` except for use that makes request
@@ -46,4 +54,24 @@ where
         send(&socket, response);
     }
     data
+}
+
+// WATCH OUT! Ugly shit
+pub trait SendableNotification: Send + Sync {
+    // How did we get here?
+    fn send<'a>(&'a self, socket: &'a SocketRef) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+}
+
+impl<T: MessageTrait + Serialize + Send + Sync> SendableNotification for T {
+    fn send<'a>(&'a self, socket: &'a SocketRef) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        let socket = socket.clone();
+        Box::pin(async move {
+            // send(&socket, self);
+            socket
+                .emit_with_ack::<_, String>(Self::MSG_TYPE, self)
+                .unwrap()
+                .await
+                .unwrap();
+        })
+    }
 }

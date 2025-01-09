@@ -2,11 +2,13 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
+    time::Duration,
 };
 
 use futures;
 use futures::stream::StreamExt;
-use tokio::sync::RwLock;
+use socketioxide::extract::SocketRef;
+use tokio::{sync::RwLock, time::sleep};
 
 use common::{
     message::server_response::RegisterRoomResponse,
@@ -15,13 +17,18 @@ use common::{
     Game, Player,
 };
 
-#[derive(Debug)]
+use crate::utils::SendableNotification;
+
 pub struct RoomState {
     users: HashSet<User>,
 
     /// Array of 4 players, where None means that the place is empty.
     /// This array is not cleared when player disconnects, so that no other player can take this place when player disconnects.
     player_positions: [Option<User>; 4],
+
+    /// Notifications that were sent to all users and are important for knowledge of game state.
+    /// It is used to inform user that disconnected during game.
+    sent_notifications: Vec<Box<dyn SendableNotification + Send + Sync>>,
 
     pub game: Game,
     pub info: RoomInfo,
@@ -33,6 +40,7 @@ impl RoomState {
             users: HashSet::new(),
             player_positions: [None, None, None, None],
             game: Game::new(),
+            sent_notifications: Vec::new(),
             info,
         }
     }
@@ -64,10 +72,11 @@ impl RoomState {
 
     pub fn user_select_place(&mut self, user: &User, position: Option<Player>) -> bool {
         // TODO: if game already started, don't allow (return false)
-        if let Some(player_position) = position {
-            let pos = player_position.to_usize();
-            if self.player_positions[pos].is_none() {
-                self.player_positions[pos] = Some(user.clone());
+        if let Some(new_position) = position {
+            let new_position_usize = new_position.to_usize();
+            if self.player_positions[new_position_usize].is_none() {
+                self._remove_player_from_positions(user);
+                self.player_positions[new_position_usize] = Some(user.clone());
                 true
             } else {
                 false
@@ -87,9 +96,29 @@ impl RoomState {
             .position(|pos| pos.as_ref() == Some(user))
             .map(|pos| Player::from_usize(pos).unwrap())
     }
+
+    pub fn append_notifications(
+        &mut self,
+        notifications: Vec<Box<dyn SendableNotification + Send + Sync>>,
+    ) {
+        self.sent_notifications.extend(notifications);
+        // self.sent_notifications.reserve(notifications.len());
+        // for notification in notifications {
+        //     self.sent_notifications.push(Box::new(notification));
+        // }
+    }
+
+    pub async fn send_notifications(&self, socket: &SocketRef) {
+        println!("Sending {} notifications", self.sent_notifications.len());
+        for notification in &self.sent_notifications {
+            notification.send(socket).await;
+            println!("Notification sent");
+            sleep(Duration::from_secs(5)).await;
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServerStateInner {
     rooms: HashMap<RoomId, Arc<RwLock<RoomState>>>,
     users: HashSet<User>,

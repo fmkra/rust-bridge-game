@@ -7,6 +7,7 @@ use common::message::client_message::{
 use common::message::server_notification::{
     AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
     AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification,
+    TrickFinishedNotification,
 };
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse};
 use common::message::{
@@ -23,7 +24,7 @@ use common::message::{
 };
 use common::user::User;
 use common::{Bid, BidError, BidStatus, GameState, TrickStatus};
-use handlers::{notify_trick_finished, RoomWrapper};
+use handlers::RoomWrapper;
 use socketioxide::{
     extract::{Data, SocketRef, State},
     SocketIo,
@@ -41,7 +42,7 @@ mod handlers;
 mod state;
 mod utils;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct ClientData {
     user: User,
     room: Option<Arc<RwLock<RoomState>>>,
@@ -275,30 +276,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     if previous_game_state == GameState::WaitingForPlayers {
                         // Game starts
-                        notify(&s, &room_id, &game_started_notification);
 
-                        notify(&s, &room_id, &ask_bid_notification);
+                        let notifications = vec![
+                            notify(&s, &room_id, game_started_notification),
+                            notify(&s, &room_id, ask_bid_notification)
+                        ];
+
+                        room.write().await.append_notifications(notifications);
                     } else {
+                        room.read().await.send_notifications(&s).await;
                         // Game is already running and is resumed now
                         // TODO: maybe when 2 players leave, let first one in before 2nd joins
-                        send(&s, &game_started_notification);
+                        // send(&s, &game_started_notification);
 
-                        if previous_game_state == GameState::Auction {
-                            send(&s, &ask_bid_notification);
-                        } else {
-                            let room_lock = room.read().await;
+                        // if previous_game_state == GameState::Auction {
+                        //     send(&s, &ask_bid_notification);
+                        // } else {
+                        //     let room_lock = room.read().await;
 
-                            send(&s, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
-                                winner: room_lock.game.max_bidder,
-                                max_bid: room_lock.game.max_bid,
-                                game_value: room_lock.game.game_value,
-                            }));
+                        //     send(&s, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
+                        //         winner: room_lock.game.max_bidder,
+                        //         max_bid: room_lock.game.max_bid,
+                        //         game_value: room_lock.game.game_value,
+                        //     }));
 
-                            send(&s, &AskTrickNotification {
-                                player: room_lock.game.current_player,
-                                cards: room_lock.game.current_trick.clone(),
-                            });
-                        }
+                        //     send(&s, &AskTrickNotification {
+                        //         player: room_lock.game.current_player,
+                        //         cards: room_lock.game.current_trick.clone(),
+                        //     });
+                        // }
                     }
                 }
             }
@@ -357,29 +363,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 next_state => {
                     send(&s, &MakeBidResponse::Ok);
 
+                    let mut notifications = Vec::new();
                     if next_state == BidStatus::Auction {
-                        notify(&s, &room_lock.info.id, &AskBidNotification {
+                        notifications.push(notify(&s, &room_lock.info.id, AskBidNotification {
                             player: room_lock.game.current_player,
                             max_bid: room_lock.game.max_bid,
-                        });
+                        }));
                     } else {
-                        notify(&s, &room_lock.info.id, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
+                        notifications.push(notify(&s, &room_lock.info.id, AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
                             winner: room_lock.game.max_bidder,
                             max_bid: room_lock.game.max_bid,
                             game_value: room_lock.game.game_value,
-                        }));
+                        })));
 
                         if next_state == BidStatus::Finished {
                             // 4 passes
 
-                            notify(&s, &room_lock.info.id, &GameFinishedNotification{result: None});
+                            notifications.push(notify(&s, &room_lock.info.id, GameFinishedNotification{result: None}));
                         } else {
-                            notify(&s, &room_lock.info.id, &AskTrickNotification {
+                            notifications.push(notify(&s, &room_lock.info.id, AskTrickNotification {
                                 player: room_lock.game.current_player,
                                 cards: room_lock.game.current_trick.clone(),
-                            });
+                            }));
                         }
                     }
+                    room_lock.append_notifications(notifications);
                 },
             }
         });
@@ -404,21 +412,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let trick_result = room_lock.game.trick(&player, &data.card);
             send(&s, &MakeTrickResponse::from(&trick_result));
 
+            let mut notifications = Vec::new();
             match trick_result {
                 TrickStatus::Error(_) => {
                     return
                 },
                 TrickStatus::TrickInProgress => {
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
-                        notify(&s, &room_id, &DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone()));
+                        notifications.push(notify(&s, &room_id, DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone())));
                     }
                 }
                 TrickStatus::TrickFinished(trick_state) => {
-                    notify_trick_finished(&s, &room_id, trick_state);
+                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(trick_state)));
 
                 }
                 TrickStatus::DealFinished(deal_finished) => {
-                    notify_trick_finished(&s, &room_id, deal_finished.trick_state);
+                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(deal_finished.trick_state)));
 
                     // TODO: send deal finished and game finished notification
                     // if let Some(game_result) = room_lock.game.evaluate() {
@@ -429,10 +438,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            notify(&s, &room_id, &AskTrickNotification {
+            notifications.push(notify(&s, &room_id, AskTrickNotification {
                 player: room_lock.game.current_player,
                 cards: room_lock.game.current_trick.clone(),
-            });
+            }));
+
+            room_lock.append_notifications(notifications);
         });
 
         // s.on(
