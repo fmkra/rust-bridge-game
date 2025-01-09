@@ -16,6 +16,10 @@ impl Player {
         self.skip(1)
     }
 
+    pub fn prev(&self) -> Player {
+        self.skip(3)
+    }
+
     pub fn skip(&self, num_skips: usize) -> Player {
         // Unwrap() is valid, as the number is in [0; 3]
         Player::from_usize((self.to_usize() + num_skips) % 4).unwrap()

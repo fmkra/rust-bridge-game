@@ -2,7 +2,9 @@ use common::user::User;
 use common::{
     message::client_message::{
         MakeBidMessage,
+        MakeTrickMessage,
         MAKE_BID_MESSAGE,
+        MAKE_TRICK_MESSAGE
     },
     Bid, BidType, Card, Player, Suit
 };
@@ -96,6 +98,7 @@ pub fn play_ui(
     current_player_arc: Arc<Mutex<Option<Player>>>,
     dummy_cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
     dummy_player_arc: Arc<Mutex<Option<Player>>>,
+    current_placed_cards_arc: Arc<Mutex<[Option<Card>; 4]>>,
     bid_textures: &HashMap<String, Texture2D>,
     card_textures: &HashMap<String, Texture2D>,
 ) {
@@ -108,7 +111,6 @@ pub fn play_ui(
     };
 
     if player_position.is_none() {
-        draw_text("You are currently spectating.", 20.0, 20.0, 20.0, WHITE);
         return;
     }
 
@@ -168,8 +170,9 @@ pub fn play_ui(
 
     // Center position of the square
     let square_size = 300.0;
-    let square_x = (screen_width() - square_size) / 2.0;
-    let square_y = (screen_height() - square_size) / 2.0;
+    let square_x = 0.3 * screen_width() - square_size / 2.0;
+    let square_y = 0.5 * screen_height() - square_size / 2.0;
+
 
     // Rectangle dimensions for the sides
     let rect_width = square_size * 0.8;
@@ -272,51 +275,215 @@ pub fn play_ui(
         rect_width,
         get_text_color(left_player),
     );
-
-    if let Some(dummy) = dummy_player {
-        if dummy != bottom_player {
-            if let Some(cards) = dummy_cards {
-                let dummy_x = match dummy {
-                    p if p == right_player => square_x + square_size + 20.0, // Right
-                    p if p == top_player => square_x + (square_size - rect_width) / 2.0, // Top
-                    p if p == left_player => square_x - 70.0, // Left
-                    _ => square_x, // Default
-                };
-                let dummy_y = match dummy {
-                    p if p == top_player => square_y - 120.0, // Top
-                    p if p == left_player || p == right_player => square_y + (square_size - rect_width) / 2.0, // Left/Right
-                    _ => square_y + square_size + 20.0, // Default
-                };
-                let rotation: f32 = match dummy {
-                    p if p == left_player || p == right_player => 90.0,
-                    _ => 0.0,
-                };
-
-                for (i, card) in cards.iter().enumerate() {
-                    let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
-                    if let Some(texture) = card_textures.get(&card_name) {
-                        draw_texture_ex(
-                            texture,
-                            dummy_x + i as f32 * 30.0,
-                            dummy_y,
-                            WHITE,
-                            DrawTextureParams {
-                                dest_size: Some(Vec2::new(60.0, 90.0)),
-                                rotation: rotation.to_radians(),
-                                ..Default::default()
-                            },
-                        );
-                    }
-                }
-            }
-        }
-    }
-
+    
     let grid_x = screen_width() - 350.0; // Start of grid on the top-right corner
     let grid_y = 50.0; // Starting y position
     let grid_cell_size = 60.0;
     let grid_spacing = 10.0;
 
+    if let (Some(dummy_cards), Some(dummy_player)) = (dummy_cards, dummy_player) {
+        if dummy_player != player_position {
+            // Sort dummy cards by suit, then by rank
+            let mut dummy_cards_sorted = dummy_cards.clone();
+            dummy_cards_sorted.sort_by(|a, b| a.suit.cmp(&b.suit).then(b.rank.cmp(&a.rank)));
+    
+            let dummy_card_width = grid_cell_size * 2.0; // Size of each dummy card
+            let dummy_card_spacing = 30.0; // Overlapping spacing for dummy cards
+            let extra_offset = 100.0; // Increased additional spacing from the table
+    
+            // Calculate total width/height of the pile
+            let total_pile_length = (dummy_cards_sorted.len() as f32 - 1.0) * dummy_card_spacing + dummy_card_width;
+    
+            match dummy_player {
+                p if p == left_player => {
+                    // Center vertically on the left side with additional left offset
+                    let pile_y = square_y + (square_size - total_pile_length) / 2.0;
+                    let pile_x = square_x - dummy_card_width - 20.0 - extra_offset; // Move further left
+    
+                    for (i, card) in dummy_cards_sorted.iter().enumerate() {
+                        let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
+                        if let Some(texture) = card_textures.get(&card_name) {
+                            let card_y = pile_y + i as f32 * dummy_card_spacing;
+    
+                            draw_texture_ex(
+                                texture,
+                                pile_x,
+                                card_y,
+                                WHITE,
+                                DrawTextureParams {
+                                    dest_size: Some(Vec2::new(dummy_card_width, dummy_card_width)),
+                                    rotation: std::f32::consts::FRAC_PI_2, // Rotate 90 degrees
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
+                }
+                p if p == right_player => {
+                    // Center vertically on the right side with additional right offset
+                    let pile_y = square_y + (square_size - total_pile_length) / 2.0;
+                    let pile_x = square_x + square_size + 20.0 + extra_offset; // Move further right
+    
+                    for (i, card) in dummy_cards_sorted.iter().enumerate() {
+                        let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
+                        if let Some(texture) = card_textures.get(&card_name) {
+                            let card_y = pile_y + i as f32 * dummy_card_spacing;
+    
+                            draw_texture_ex(
+                                texture,
+                                pile_x,
+                                card_y,
+                                WHITE,
+                                DrawTextureParams {
+                                    dest_size: Some(Vec2::new(dummy_card_width, dummy_card_width)),
+                                    rotation: -std::f32::consts::FRAC_PI_2, // Rotate -90 degrees
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
+                }
+                p if p == top_player => {
+                    // Center horizontally at the top with additional top offset
+                    let pile_x = square_x + (square_size - total_pile_length) / 2.0;
+                    let pile_y = square_y - dummy_card_width - 20.0 - extra_offset; // Move further up
+    
+                    for (i, card) in dummy_cards_sorted.iter().enumerate() {
+                        let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
+                        if let Some(texture) = card_textures.get(&card_name) {
+                            let card_x = pile_x + i as f32 * dummy_card_spacing;
+    
+                            draw_texture_ex(
+                                texture,
+                                card_x,
+                                pile_y,
+                                WHITE,
+                                DrawTextureParams {
+                                    dest_size: Some(Vec2::new(dummy_card_width, dummy_card_width)),
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Placeholder for Bid Texture
+    let bid_texture_name = "1NT";
+    let bid_texture_width = grid_cell_size; // Explicitly setting width for consistency
+    let bid_texture_height = grid_cell_size; // Explicitly setting height for consistency
+
+    // TODO: DISPLAY BIDS PLACED BY PLAYERS
+    // Texture_top: Positioned at top: 0px, left: 120px
+    if let Some(bid_texture) = bid_textures.get(bid_texture_name) {
+        draw_texture_ex(
+            bid_texture,
+            square_x + 120.0,
+            square_y + 0.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
+                ..Default::default()
+            },
+        );
+
+        // Texture_right: Positioned at top: 120px, left: 240px
+        draw_texture_ex(
+            bid_texture,
+            square_x + 240.0,
+            square_y + 120.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
+                ..Default::default()
+            },
+        );
+
+        // Texture_bottom: Positioned at top: 240px, left: 120px
+        draw_texture_ex(
+            bid_texture,
+            square_x + 120.0,
+            square_y + 240.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
+                ..Default::default()
+            },
+        );
+
+        // Texture_left: Positioned at top: 120px, left: 0px
+        draw_texture_ex(
+            bid_texture,
+            square_x + 0.0,
+            square_y + 120.0,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
+                ..Default::default()
+            },
+        );
+    }
+
+    // DISPLAY CARDS TRICKED -----------------------------------------------------------------------
+    // Calculate the offset for shifting positions (player_position as bottom = 2)
+    let shift_offset = match player_position {
+        Player::North => 2, // Shift North to bottom
+        Player::East => 1,  // Shift East to bottom
+        Player::South => 0, // South is already at the bottom
+        Player::West => 3,  // Shift West to bottom
+    };
+
+    // Adjust the positions for the placeholders based on rotation
+    let placeholder_positions = [
+        (square_x + 90.0, square_y + 0.0),       // North
+        (square_x + 180.0, square_y + 90.0),    // East
+        (square_x + 90.0, square_y + 180.0),    // South
+        (square_x + 0.0, square_y + 90.0),      // West
+    ];
+    let adjusted_positions: Vec<(f32, f32)> = placeholder_positions
+        .iter()
+        .cycle()
+        .skip(shift_offset)
+        .take(4)
+        .cloned()
+        .collect();
+
+    // Retrieve the current trick cards
+    let current_trick = {
+        let trick_lock = current_placed_cards_arc.blocking_lock();
+        *trick_lock
+    };
+
+    // Card dimensions
+    let card_texture_width = grid_cell_size * 2.0;
+    let card_texture_height = grid_cell_size * 2.0;
+
+    for (i, position) in adjusted_positions.iter().enumerate() {
+        let (placeholder_x, placeholder_y) = position;
+
+        // If there's a card in the current trick for this position, display it
+        if let Some(card) = current_trick[i] {
+            let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
+            if let Some(texture) = card_textures.get(&card_name) {
+                draw_texture_ex(
+                    texture,
+                    *placeholder_x,
+                    *placeholder_y,
+                    WHITE,
+                    DrawTextureParams {
+                        dest_size: Some(Vec2::new(card_texture_width, card_texture_height)),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+        // If there's no card, skip drawing anything, leaving it transparent
+    }
+
+    // DISPLAY BIDS TO PLAY --------------------------------------------------------------------------------------
     let bid_types = [
         BidType::Trump(Suit::Clubs), 
         BidType::Trump(Suit::Diamonds), 
@@ -395,57 +562,74 @@ pub fn play_ui(
         }
     }
 
+    // DISPLAY PLAYER CARDS --------------------------------------------------------------------------------------------------
     if let Some(mut cards) = player_cards {
         // Sort cards by suit, then by rank
         cards.sort_by(|a, b| a.suit.cmp(&b.suit).then(b.rank.cmp(&a.rank)));
-
+    
         let pile_y = square_y + square_size + 100.0;
         let card_spacing = 30.0; // Overlapping cards horizontally
-
-        let mut x_offset = square_x;
+        let card_width = grid_cell_size * 2.0; // Each card's width
+    
+        // Calculate the total width of the pile and center it
+        let total_pile_width = (cards.len() as f32 - 1.0) * card_spacing + card_width;
+        let x_offset = square_x + (square_size - total_pile_width) / 2.0;
+    
         let mut clicked_card = None; // Track the topmost clicked card
-
+    
         // Render cards
         for (i, card) in cards.iter().enumerate() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
             if let Some(texture) = card_textures.get(&card_name) {
                 let card_x = x_offset + i as f32 * card_spacing;
-
+    
                 draw_texture_ex(
                     texture,
                     card_x,
                     pile_y,
                     WHITE,
                     DrawTextureParams {
-                        dest_size: Some(Vec2::new(grid_cell_size * 2.0, grid_cell_size * 2.0)),
+                        dest_size: Some(Vec2::new(card_width, card_width)),
                         ..Default::default()
                     },
                 );
             }
         }
-
-        // Handle clicks in reverse order
+    
+        // Handle clicks in reverse order to respect the overlapping priority
         for (i, card) in cards.iter().enumerate().rev() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
             if let Some(_) = card_textures.get(&card_name) {
                 let card_x = x_offset + i as f32 * card_spacing;
-
+    
                 if clicked_card.is_none()
                     && is_mouse_button_pressed(MouseButton::Left)
                     && mouse_position().0 >= card_x
-                    && mouse_position().0 <= card_x + grid_cell_size * 2.0
+                    && mouse_position().0 <= card_x + card_width
                     && mouse_position().1 >= pile_y
-                    && mouse_position().1 <= pile_y + grid_cell_size * 2.0
+                    && mouse_position().1 <= pile_y + card_width
                 {
                     clicked_card = Some(card.clone());
                     break; // Stop checking once the topmost card is clicked
                 }
             }
         }
-
-        // Print the topmost clicked card, if any
+    
+        // Handle the clicked card
         if let Some(card) = clicked_card {
-            println!("Clicked on card: {:?}", card);
+            println!("CLICKED: {:?}", card);
+            let socket_clone = socket.clone();
+            let mut trick_val = trick_arc.blocking_lock();
+            *trick_val = Some(card);
+            runtime.spawn(async move {
+                socket_clone
+                    .emit(
+                        MAKE_TRICK_MESSAGE,
+                        to_string(&MakeTrickMessage { card }).unwrap(),
+                    )
+                    .await
+                    .unwrap();
+            });
         }
     }
 }

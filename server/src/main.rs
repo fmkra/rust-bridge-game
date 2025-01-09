@@ -469,6 +469,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::from(game_result)).unwrap();
                                 return;
                             }
+
+                            sleep(Duration::from_secs(2)).await;
                         },
                         TrickStatus::TrickInProgress => {
                             if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
@@ -483,8 +485,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         _ => {}
                     }
-
-                    sleep(Duration::from_secs(2)).await;
 
                     s.within(RoomWrapper(room_id)).emit(ASK_TRICK_NOTIFICATION, &AskTrickNotification {
                         player: room_lock.game.current_player,

@@ -15,10 +15,11 @@ use gui_room::room_ui;
 use gui_play::{play_ui, preload_textures, preload_cards};
 
 use std::sync::Arc;
+use std::time::Duration;
 use futures_util::FutureExt;
 use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde_json::to_string;
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, time::sleep};
 use tokio::sync::Mutex;
 use macroquad::prelude::*;
 use common::{
@@ -41,6 +42,8 @@ use common::{
             AuctionFinishedNotification,
             DummyCardsNotification,
             AskTrickNotification,
+            TrickFinishedNotification,
+            GameFinishedNotification,
             ASK_BID_NOTIFICATION,
             GAME_STARTED_NOTIFICATION,
             JOIN_ROOM_NOTIFICATION,
@@ -49,6 +52,8 @@ use common::{
             AUCTION_FINISHED_NOTIFICATION,
             DUMMY_CARDS_NOTIFICATION,
             ASK_TRICK_NOTIFICATION,
+            TRICK_FINISHED_NOTIFICATION,
+            GAME_FINISHED_NOTIFICATION,
         }, server_response::{
             GetCardsResponse,
             JoinRoomResponse,
@@ -58,6 +63,7 @@ use common::{
             LoginResponse,
             SelectPlaceResponse,
             MakeBidResponse,
+            MakeTrickResponse,
             GET_CARDS_RESPONSE,
             JOIN_ROOM_RESPONSE,
             LEAVE_ROOM_RESPONSE,
@@ -67,6 +73,7 @@ use common::{
             REGISTER_ROOM_RESPONSE,
             SELECT_PLACE_RESPONSE,
             MAKE_BID_RESPONSE,
+            MAKE_TRICK_RESPONSE,
         }
     }, room::RoomId, Bid, Player, Card
 };
@@ -106,6 +113,9 @@ async fn main() {
     let client_notifications_clone_8 = client.notifications.clone();
     let client_notifications_clone_9 = client.notifications.clone();
     let client_notifications_clone_10 = client.notifications.clone();
+    let client_notifications_clone_11 = client.notifications.clone();
+    let client_notifications_clone_12 = client.notifications.clone();
+    let client_notifications_clone_13 = client.notifications.clone();
     let client_name_clone = client.name.clone();
     let client_state_clone = client.state.clone();
     let client_state_clone_1 = client.state.clone();
@@ -120,14 +130,34 @@ async fn main() {
     let client_selected_seat_clone_1 = client.selected_seat.clone();
     let client_selected_seat_clone_2 = client.selected_seat.clone();
     let client_card_list_clone = client.card_list.clone();
+    let client_card_list_clone_1 = client.card_list.clone();
     let client_placed_bid_clone = client.placed_bid.clone();
     let client_placed_trick_clone = client.placed_trick.clone();
     let client_game_max_bid_clone = client.game_max_bid.clone();
     let client_game_current_player_clone = client.game_current_player.clone();
     let client_game_current_player_clone_1 = client.game_current_player.clone();
+    let client_game_current_player_clone_2 = client.game_current_player.clone();
+    let client_game_current_player_clone_3 = client.game_current_player.clone();
     let client_dummy_cards_clone = client.dummy_cards.clone();
     let client_dummy_cards_clone_1 = client.dummy_cards.clone();
     let client_dummy_player_clone = client.dummy_player.clone();
+    let client_current_placed_cards_clone = client.current_placed_cards.clone();
+    let client_current_placed_cards_clone_1 = client.current_placed_cards.clone();
+
+    let client_state_clone_4 = client.state.clone();
+    let client_selected_room_name_clone_1 = client.selected_room_name.clone();
+    let client_seats_clone_3 = client.seats.clone();
+    let client_selected_seat_clone_3 = client.selected_seat.clone();
+    let client_card_list_clone_2 = client.card_list.clone();
+    let client_player_bids_clone_1 = client.player_bids.clone();
+    let client_placed_bid_clone_1 = client.placed_bid.clone();
+    let client_placed_trick_clone_1 = client.placed_trick.clone();
+    let client_game_max_bid_clone_1 = client.game_max_bid.clone();
+    let client_game_current_player_clone_4 = client.game_current_player.clone();
+    let client_dummy_cards_clone_2 = client.dummy_cards.clone();
+    let client_dummy_cards_clone_3 = client.dummy_cards.clone();
+    let client_dummy_player_clone_1 = client.dummy_player.clone();
+    let client_current_placed_cards_clone_2 = client.current_placed_cards.clone();
 
     // Connect to the server
     let socket = runtime.block_on(async {
@@ -600,6 +630,8 @@ async fn main() {
                 })
                 .on(ASK_TRICK_NOTIFICATION, move |payload, _| {
                     let client_dummy_cards_arc = client_dummy_cards_clone_1.clone();
+                    let client_game_current_player_arc = client_game_current_player_clone_2.clone();
+                    let client_current_placed_cards_arc = client_current_placed_cards_clone.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -607,6 +639,7 @@ async fn main() {
                             }
                             _ => return,
                         };
+                        // Remove the card if it was dummy's
                         {
                             let mut client_dummy_cards_val = client_dummy_cards_arc.lock().await;
                             let client_dummy_cards_val_clone = client_dummy_cards_val.clone();
@@ -618,6 +651,170 @@ async fn main() {
                                 *client_dummy_cards_val = Some(dummy_cards);
                             }
                         }
+                        {
+                            let mut client_game_current_player_val = client_game_current_player_arc.lock().await;
+                            *client_game_current_player_val = Some(msg.player);
+                        }
+                        {
+                            let mut client_current_placed_cards_val = client_current_placed_cards_arc.lock().await;
+                            let mut placed_cards: [Option<Card>; 4] = [None, None, None, None];      
+                            let mut previous_player = msg.player.prev();
+                            for el in msg.cards.iter().rev() {
+                                placed_cards[previous_player.to_usize()] = Some(el.clone());
+                                previous_player = previous_player.prev();
+                            }
+                            *client_current_placed_cards_val = placed_cards;
+                        }
+                    }
+                    .boxed()
+                })
+                .on(MAKE_TRICK_RESPONSE, move |payload, _| {
+                    let notifications = client_notifications_clone_11.clone();
+                    let client_card_list_arc = client_card_list_clone_1.clone();
+                    let input_placed_trick_arc = input_placed_trick_clone.clone();
+                    async move {
+                        let msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<MakeTrickResponse>(text[0].clone()).unwrap()
+                            }
+                            _ => return,
+                        };
+                        match msg {
+                            MakeTrickResponse::Ok => {
+                                {
+                                    let mut client_card_list_val = client_card_list_arc.lock().await;
+                                    let input_placed_trick_val = input_placed_trick_arc.lock().await;
+                                    let client_card_list_val_clone = client_card_list_val.clone();
+                                    if let Some(mut cards) = client_card_list_val_clone {
+                                        if let Some(placed_card) = *input_placed_trick_val {
+                                            cards.retain(|c| *c != placed_card);
+                                            *client_card_list_val = Some(cards);
+                                        }
+                                    }
+                                }
+                            },
+                            MakeTrickResponse::NotInRoom => {
+                                create_error_notification(String::from("You are not in a room"),notifications);
+                            },
+                            MakeTrickResponse::SpectatorNotAllowed => {
+                                create_error_notification(String::from("You are not allowed to play"),notifications);
+                            },
+                            MakeTrickResponse::NotYourTurn => {
+                                create_error_notification(String::from("It's not your turn"),notifications);
+                            },
+                            MakeTrickResponse::TrickNotInProcess => {
+                                create_error_notification(String::from("Trick is not in process"),notifications);
+                            }
+                            MakeTrickResponse::InvalidCard => {
+                                create_error_notification(String::from("This card is not valid"),notifications);
+                            },
+                            MakeTrickResponse::Unauthenticated => {
+                                create_error_notification(String::from("You are not authenticated"),notifications);
+                            },
+                        }
+                    }
+                    .boxed()
+                })
+                .on(TRICK_FINISHED_NOTIFICATION, move |payload, _| {
+                    let client_game_current_player_arc = client_game_current_player_clone_3.clone();
+                    let client_current_placed_cards_arc = client_current_placed_cards_clone_1.clone();
+                    let notifications = client_notifications_clone_12.clone();
+                    let client_dummy_cards_arc = client_dummy_cards_clone_2.clone();
+                    async move {
+                        let msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<TrickFinishedNotification>(text[0].clone())
+                                    .unwrap()
+                            }
+                            _ => return,
+                        };
+                        // Remove the final card if it was dummy's
+                        {
+                            let mut client_dummy_cards_val = client_dummy_cards_arc.lock().await;
+                            let client_dummy_cards_val_clone = client_dummy_cards_val.clone();
+
+                            if let Some(mut dummy_cards) = client_dummy_cards_val_clone {
+                                if let Some(card) = msg.cards.last() {
+                                    dummy_cards.retain(|c| c != card);
+                                }
+                                *client_dummy_cards_val = Some(dummy_cards);
+                            }
+                        }
+                        // Add the final card to the placed_cards.
+                        {
+                            let current_player = {
+                                let val = client_game_current_player_arc.lock().await;
+                                *val
+                            };
+                            if let Some(current_player) = current_player {
+                                let mut client_current_placed_cards_val = client_current_placed_cards_arc.lock().await;
+                                let mut placed_cards = *client_current_placed_cards_val;
+                                if let Some(last_tricked) = msg.cards.last() {
+                                    placed_cards[current_player.to_usize()] = Some(*last_tricked);
+                                }
+                                *client_current_placed_cards_val = placed_cards;
+                            }
+                        }
+                        create_info_notification(
+                            String::from(
+                                format!(
+                                    "Trick {} taken by {:?}",
+                                    msg.cards
+                                        .iter()
+                                        .map(Card::to_string)
+                                        .collect::<Vec<_>>()
+                                        .join(" "),
+                                    msg.taker
+                                )
+                            ),
+                            notifications
+                        );
+                    }
+                    .boxed()
+                })
+                .on(GAME_FINISHED_NOTIFICATION, move |payload, c| {
+                    let notifications = client_notifications_clone_13.clone();
+                    let client_state = client_state_clone_4.clone();
+                    let selected_room_name = client_selected_room_name_clone_1.clone();
+                    let client_seats = client_seats_clone_3.clone();
+                    let client_selected_seat = client_selected_seat_clone_3.clone();
+                    let client_card_list = client_card_list_clone_2.clone();
+                    let client_player_bids = client_player_bids_clone_1.clone();
+                    let client_placed_bid = client_placed_bid_clone_1.clone();
+                    let client_placed_trick = client_placed_trick_clone_1.clone();
+                    let client_game_max_bid = client_game_max_bid_clone_1.clone();
+                    let client_game_current_player = client_game_current_player_clone_4.clone();
+                    let client_dummy_cards = client_dummy_cards_clone_3.clone();
+                    let client_dummy_player = client_dummy_player_clone_1.clone();
+                    let client_current_placed_cards = client_current_placed_cards_clone_2.clone();
+                    async move {
+                        let _msg = match payload {
+                            Payload::Text(text) => {
+                                serde_json::from_value::<GameFinishedNotification>(text[0].clone()).unwrap()
+                            }
+                            _ => return,
+                        };
+                        create_info_notification(String::from("Game finished!"), notifications);
+                        sleep(Duration::from_secs(5)).await;
+                        {
+                            {*client_state.lock().await = GuiClientState::InLobby;}
+                            {*selected_room_name.lock().await = None;}
+                            {*client_seats.lock().await = [None, None, None, None];}
+                            {*client_selected_seat.lock().await = None;}
+                            {*client_card_list.lock().await = None;}
+                            {*client_player_bids.lock().await = [None, None, None, None];}
+                            {*client_placed_bid.lock().await = None;}
+                            {*client_placed_trick.lock().await = None;}
+                            {*client_game_max_bid.lock().await = None;}
+                            {*client_game_current_player.lock().await = None;}
+                            {*client_dummy_cards.lock().await = None;}
+                            {*client_dummy_player.lock().await = None;}
+                            {*client_current_placed_cards.lock().await = [None, None, None, None];}
+                            {}
+                        }
+                        c.emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
+                            .await
+                            .unwrap();
                     }
                     .boxed()
                 })
@@ -675,10 +872,11 @@ async fn main() {
                     client.seats.clone(),
                     client.card_list.clone(),
                     input_placed_bid_clone.clone(),
-                    input_placed_trick_clone.clone(),
+                    input_placed_trick.clone(),
                     client.game_current_player.clone(),
                     client.dummy_cards.clone(),
                     client.dummy_player.clone(),
+                    client.current_placed_cards.clone(),
                     &bid_textures,
                     &card_textures,
                 );
