@@ -1,5 +1,4 @@
 use common::message::MessageTrait;
-use common::user::User;
 use common::{
     message::client_message::{MakeBidMessage, MakeTrickMessage},
     Bid, BidType, Card, Player, Suit,
@@ -11,6 +10,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
+
+use crate::gui_client::GuiClient;
 
 pub async fn preload_textures() -> HashMap<String, Texture2D> {
     let mut textures = HashMap::new();
@@ -83,28 +84,21 @@ fn place_bid(
     });
 }
 
-pub fn play_ui(
+pub async fn play_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    player_seat_arc: Arc<Mutex<Option<Player>>>,
-    seats_arc: Arc<Mutex<[Option<User>; 4]>>,
-    cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
+    client: Arc<Mutex<GuiClient>>,
     bid_arc: Arc<Mutex<Option<Bid>>>,
     trick_arc: Arc<Mutex<Option<Card>>>,
-    current_player_arc: Arc<Mutex<Option<Player>>>,
-    dummy_cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
-    dummy_player_arc: Arc<Mutex<Option<Player>>>,
-    current_placed_cards_arc: Arc<Mutex<[Option<Card>; 4]>>,
     bid_textures: &HashMap<String, Texture2D>,
     card_textures: &HashMap<String, Texture2D>,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
+    let client_lock = client.lock().await;
+
     // Retrieve the player's seat
-    let player_position = {
-        let player_seat_lock = player_seat_arc.blocking_lock();
-        *player_seat_lock
-    };
+    let player_position = client_lock.selected_seat;
 
     if player_position.is_none() {
         return;
@@ -113,32 +107,17 @@ pub fn play_ui(
     let player_position = player_position.unwrap();
 
     // Retrieve seats data
-    let seats = {
-        let seats_lock = seats_arc.blocking_lock();
-        seats_lock.clone()
-    };
+    let seats = client_lock.seats.clone();
 
     // Retrieve current player
-    let current_player = {
-        let current_player_lock = current_player_arc.blocking_lock();
-        *current_player_lock
-    };
+    let current_player = client_lock.game_current_player;
 
-    let dummy_player = {
-        let dummy_player_lock = dummy_player_arc.blocking_lock();
-        *dummy_player_lock
-    };
+    let dummy_player = client_lock.dummy_player;
 
-    let dummy_cards = {
-        let dummy_cards_lock = dummy_cards_arc.blocking_lock();
-        dummy_cards_lock.clone()
-    };
+    let dummy_cards = client_lock.dummy_cards.clone();
 
     // Retrieve player's cards
-    let player_cards = {
-        let cards_lock = cards_arc.blocking_lock();
-        cards_lock.clone()
-    };
+    let player_cards = client_lock.card_list.clone();
 
     // Dynamic rotation logic to keep the player's seat at the bottom
     let bottom_player = player_position;
@@ -442,10 +421,7 @@ pub fn play_ui(
         .collect();
 
     // Retrieve the current trick cards
-    let current_trick = {
-        let trick_lock = current_placed_cards_arc.blocking_lock();
-        *trick_lock
-    };
+    let current_trick = client_lock.current_placed_cards.clone();
 
     // Card dimensions
     let card_texture_width = grid_cell_size * 2.0;

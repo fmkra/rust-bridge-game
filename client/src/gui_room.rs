@@ -5,33 +5,27 @@ use serde_json::to_string;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::gui_client::GuiClientState;
-
 use common::{
     message::client_message::{LeaveRoomMessage, SelectPlaceMessage},
-    user::User,
     Player,
 };
 
-pub fn room_ui(
+use crate::gui_client::GuiClient;
+
+pub async fn room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &tokio::runtime::Runtime,
-    room_name_arc: Arc<Mutex<Option<String>>>,
-    seats_arc: Arc<Mutex<[Option<User>; 4]>>,
+    client: Arc<Mutex<GuiClient>>,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
+    let client_lock = client.lock().await;
+
     // Retrieve room name
-    let room_name = {
-        let room_name_lock = room_name_arc.blocking_lock();
-        room_name_lock.clone()
-    };
+    let room_name = client_lock.selected_room_name.clone();
 
     // Retrieve seats
-    let seats = {
-        let seats_lock = seats_arc.blocking_lock();
-        seats_lock.clone()
-    };
+    let seats = client_lock.seats.clone();
 
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 400.0), |ui| {
         if let Some(room_name) = room_name {

@@ -1,8 +1,9 @@
 use macroquad::prelude::*;
-use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
+
+use crate::gui_client::GuiClient;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum NotificationType {
@@ -22,35 +23,35 @@ impl Notification {
     }
 }
 
-pub fn create_info_notification(msg: String, q: Arc<Mutex<VecDeque<Notification>>>) {
+pub fn create_info_notification(msg: String, c: Arc<Mutex<GuiClient>>) {
     let not = Notification::new(msg, NotificationType::Info);
-    create_notification(not, q);
+    create_notification(not, c);
 }
 
-pub fn create_error_notification(msg: String, q: Arc<Mutex<VecDeque<Notification>>>) {
+pub fn create_error_notification(msg: String, c: Arc<Mutex<GuiClient>>) {
     let not = Notification::new(msg, NotificationType::Error);
-    create_notification(not, q);
+    create_notification(not, c);
 }
 
-pub fn create_notification(not: Notification, q: Arc<Mutex<VecDeque<Notification>>>) {
-    let q_clone = Arc::clone(&q);
+pub fn create_notification(not: Notification, c: Arc<Mutex<GuiClient>>) {
+    let c_clone = Arc::clone(&c);
     tokio::spawn(async move {
         {
-            let mut notifications_queue = q_clone.lock().await;
-            notifications_queue.push_back(not);
+            let mut client = c_clone.lock().await;
+            client.notifications.push_back(not);
         }
 
         sleep(Duration::from_secs(5)).await;
 
-        let mut notifications_queue = q_clone.lock().await;
-        notifications_queue.pop_front();
+        let mut client = c_clone.lock().await;
+        client.notifications.pop_front();
     });
 }
 
-pub async fn display_notifications(notifications_arc: Arc<Mutex<VecDeque<Notification>>>) {
+pub async fn display_notifications(c: Arc<Mutex<GuiClient>>) {
     let notifications = {
-        let notifications_lock = notifications_arc.lock().await;
-        notifications_lock.clone()
+        let client = c.lock().await;
+        client.notifications.clone()
     };
 
     let mut y_offset = screen_height() - 50.0;
