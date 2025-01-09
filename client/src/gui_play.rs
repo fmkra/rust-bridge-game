@@ -1,16 +1,12 @@
+use common::message::MessageTrait;
 use common::user::User;
 use common::{
-    message::client_message::{
-        MakeBidMessage,
-        MakeTrickMessage,
-        MAKE_BID_MESSAGE,
-        MAKE_TRICK_MESSAGE
-    },
-    Bid, BidType, Card, Player, Suit
+    message::client_message::{MakeBidMessage, MakeTrickMessage},
+    Bid, BidType, Card, Player, Suit,
 };
-use serde_json::to_string;
 use macroquad::prelude::*;
 use macroquad::texture::{load_texture, DrawTextureParams, Texture2D};
+use serde_json::to_string;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -65,7 +61,7 @@ pub async fn preload_cards() -> HashMap<String, Texture2D> {
     textures
 }
 
-fn place_bid (
+fn place_bid(
     socket: &Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
     bid_arc: &Arc<Mutex<Option<Bid>>>,
@@ -79,8 +75,8 @@ fn place_bid (
     runtime.spawn(async move {
         socket_clone
             .emit(
-                MAKE_BID_MESSAGE,
-                to_string(&MakeBidMessage {bid: placed_bid}).unwrap(),
+                MakeBidMessage::MSG_TYPE,
+                to_string(&MakeBidMessage { bid: placed_bid }).unwrap(),
             )
             .await
             .unwrap();
@@ -147,8 +143,8 @@ pub fn play_ui(
     // Dynamic rotation logic to keep the player's seat at the bottom
     let bottom_player = player_position;
     let right_player = player_position.skip(3); // The player to the right
-    let top_player = player_position.skip(2);   // The player across
-    let left_player = player_position.skip(1);  // The player to the left
+    let top_player = player_position.skip(2); // The player across
+    let left_player = player_position.skip(1); // The player to the left
 
     // Determine usernames for each position
     let bottom_username = seats[bottom_player.to_usize()]
@@ -173,31 +169,24 @@ pub fn play_ui(
     let square_x = 0.3 * screen_width() - square_size / 2.0;
     let square_y = 0.5 * screen_height() - square_size / 2.0;
 
-
     // Rectangle dimensions for the sides
     let rect_width = square_size * 0.8;
     let rect_height = 50.0;
 
     // Draw the square
-    draw_rectangle_lines(
-        square_x,
-        square_y,
-        square_size,
-        square_size,
-        5.0,
-        WHITE,
-    );
+    draw_rectangle_lines(square_x, square_y, square_size, square_size, 5.0, WHITE);
 
     // Text size for labels
     let text_size = 30.0;
 
     // Helper function to center text
-    let center_text = |text: &str, rect_x: f32, rect_y: f32, rect_width: f32, rect_height: f32, color: Color| {
-        let text_width = measure_text(text, None, text_size as u16, 1.0).width;
-        let text_x = rect_x + (rect_width - text_width) / 2.0;
-        let text_y = rect_y + (rect_height + text_size) / 2.0 - 5.0;
-        draw_text(text, text_x, text_y, text_size, color);
-    };
+    let center_text =
+        |text: &str, rect_x: f32, rect_y: f32, rect_width: f32, rect_height: f32, color: Color| {
+            let text_width = measure_text(text, None, text_size as u16, 1.0).width;
+            let text_x = rect_x + (rect_width - text_width) / 2.0;
+            let text_y = rect_y + (rect_height + text_size) / 2.0 - 5.0;
+            draw_text(text, text_x, text_y, text_size, color);
+        };
 
     // Determine text color based on the current player
     let get_text_color = |player: Player| {
@@ -275,7 +264,7 @@ pub fn play_ui(
         rect_width,
         get_text_color(left_player),
     );
-    
+
     let grid_x = screen_width() - 350.0; // Start of grid on the top-right corner
     let grid_y = 50.0; // Starting y position
     let grid_cell_size = 60.0;
@@ -286,25 +275,26 @@ pub fn play_ui(
             // Sort dummy cards by suit, then by rank
             let mut dummy_cards_sorted = dummy_cards.clone();
             dummy_cards_sorted.sort_by(|a, b| a.suit.cmp(&b.suit).then(b.rank.cmp(&a.rank)));
-    
+
             let dummy_card_width = grid_cell_size * 2.0; // Size of each dummy card
             let dummy_card_spacing = 30.0; // Overlapping spacing for dummy cards
             let extra_offset = 100.0; // Increased additional spacing from the table
-    
+
             // Calculate total width/height of the pile
-            let total_pile_length = (dummy_cards_sorted.len() as f32 - 1.0) * dummy_card_spacing + dummy_card_width;
-    
+            let total_pile_length =
+                (dummy_cards_sorted.len() as f32 - 1.0) * dummy_card_spacing + dummy_card_width;
+
             match dummy_player {
                 p if p == left_player => {
                     // Center vertically on the left side with additional left offset
                     let pile_y = square_y + (square_size - total_pile_length) / 2.0;
                     let pile_x = square_x - dummy_card_width - 20.0 - extra_offset; // Move further left
-    
+
                     for (i, card) in dummy_cards_sorted.iter().enumerate() {
                         let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
                         if let Some(texture) = card_textures.get(&card_name) {
                             let card_y = pile_y + i as f32 * dummy_card_spacing;
-    
+
                             draw_texture_ex(
                                 texture,
                                 pile_x,
@@ -323,12 +313,12 @@ pub fn play_ui(
                     // Center vertically on the right side with additional right offset
                     let pile_y = square_y + (square_size - total_pile_length) / 2.0;
                     let pile_x = square_x + square_size + 20.0 + extra_offset; // Move further right
-    
+
                     for (i, card) in dummy_cards_sorted.iter().enumerate() {
                         let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
                         if let Some(texture) = card_textures.get(&card_name) {
                             let card_y = pile_y + i as f32 * dummy_card_spacing;
-    
+
                             draw_texture_ex(
                                 texture,
                                 pile_x,
@@ -347,12 +337,12 @@ pub fn play_ui(
                     // Center horizontally at the top with additional top offset
                     let pile_x = square_x + (square_size - total_pile_length) / 2.0;
                     let pile_y = square_y - dummy_card_width - 20.0 - extra_offset; // Move further up
-    
+
                     for (i, card) in dummy_cards_sorted.iter().enumerate() {
                         let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
                         if let Some(texture) = card_textures.get(&card_name) {
                             let card_x = pile_x + i as f32 * dummy_card_spacing;
-    
+
                             draw_texture_ex(
                                 texture,
                                 card_x,
@@ -438,10 +428,10 @@ pub fn play_ui(
 
     // Adjust the positions for the placeholders based on rotation
     let placeholder_positions = [
-        (square_x + 90.0, square_y + 0.0),       // North
-        (square_x + 180.0, square_y + 90.0),    // East
-        (square_x + 90.0, square_y + 180.0),    // South
-        (square_x + 0.0, square_y + 90.0),      // West
+        (square_x + 90.0, square_y + 0.0),   // North
+        (square_x + 180.0, square_y + 90.0), // East
+        (square_x + 90.0, square_y + 180.0), // South
+        (square_x + 0.0, square_y + 90.0),   // West
     ];
     let adjusted_positions: Vec<(f32, f32)> = placeholder_positions
         .iter()
@@ -485,14 +475,15 @@ pub fn play_ui(
 
     // DISPLAY BIDS TO PLAY --------------------------------------------------------------------------------------
     let bid_types = [
-        BidType::Trump(Suit::Clubs), 
-        BidType::Trump(Suit::Diamonds), 
-        BidType::Trump(Suit::Hearts), 
-        BidType::Trump(Suit::Spades), 
-        BidType::NoTrump
+        BidType::Trump(Suit::Clubs),
+        BidType::Trump(Suit::Diamonds),
+        BidType::Trump(Suit::Hearts),
+        BidType::Trump(Suit::Spades),
+        BidType::NoTrump,
     ];
     let suit_names = ["C", "D", "H", "S", "NT"];
-    for row in 0u8..7 { // Rows for numbers 1-7
+    for row in 0u8..7 {
+        // Rows for numbers 1-7
         for col in 0..5 {
             let bid_name = format!("{}{}", row + 1, suit_names[col]);
 
@@ -556,7 +547,7 @@ pub fn play_ui(
             {
                 let placed_bid = extra_bids[i];
                 place_bid(&socket, runtime, &bid_arc, placed_bid);
-                
+
                 println!("Placed bid: {:?}", placed_bid);
             }
         }
@@ -566,23 +557,23 @@ pub fn play_ui(
     if let Some(mut cards) = player_cards {
         // Sort cards by suit, then by rank
         cards.sort_by(|a, b| a.suit.cmp(&b.suit).then(b.rank.cmp(&a.rank)));
-    
+
         let pile_y = square_y + square_size + 100.0;
         let card_spacing = 30.0; // Overlapping cards horizontally
         let card_width = grid_cell_size * 2.0; // Each card's width
-    
+
         // Calculate the total width of the pile and center it
         let total_pile_width = (cards.len() as f32 - 1.0) * card_spacing + card_width;
         let x_offset = square_x + (square_size - total_pile_width) / 2.0;
-    
+
         let mut clicked_card = None; // Track the topmost clicked card
-    
+
         // Render cards
         for (i, card) in cards.iter().enumerate() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
             if let Some(texture) = card_textures.get(&card_name) {
                 let card_x = x_offset + i as f32 * card_spacing;
-    
+
                 draw_texture_ex(
                     texture,
                     card_x,
@@ -595,13 +586,13 @@ pub fn play_ui(
                 );
             }
         }
-    
+
         // Handle clicks in reverse order to respect the overlapping priority
         for (i, card) in cards.iter().enumerate().rev() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
             if let Some(_) = card_textures.get(&card_name) {
                 let card_x = x_offset + i as f32 * card_spacing;
-    
+
                 if clicked_card.is_none()
                     && is_mouse_button_pressed(MouseButton::Left)
                     && mouse_position().0 >= card_x
@@ -614,7 +605,7 @@ pub fn play_ui(
                 }
             }
         }
-    
+
         // Handle the clicked card
         if let Some(card) = clicked_card {
             println!("CLICKED: {:?}", card);
@@ -624,7 +615,7 @@ pub fn play_ui(
             runtime.spawn(async move {
                 socket_clone
                     .emit(
-                        MAKE_TRICK_MESSAGE,
+                        MakeBidMessage::MSG_TYPE,
                         to_string(&MakeTrickMessage { card }).unwrap(),
                     )
                     .await

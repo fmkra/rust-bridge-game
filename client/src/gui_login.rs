@@ -1,3 +1,4 @@
+use common::message::MessageTrait;
 use macroquad::input::KeyCode;
 use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
@@ -6,10 +7,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
-use common::{
-    message::client_message::{LoginMessage, LOGIN_MESSAGE},
-    user::User,
-};
+use common::{message::client_message::LoginMessage, user::User};
 
 pub fn login_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
@@ -40,7 +38,7 @@ pub fn login_ui(
             let socket_clone = socket.clone();
             runtime.spawn(async move {
                 socket_clone
-                    .emit(LOGIN_MESSAGE, to_string(&login_message).unwrap())
+                    .emit(LoginMessage::MSG_TYPE, to_string(&login_message).unwrap())
                     .await
                     .unwrap();
             });

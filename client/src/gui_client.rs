@@ -1,50 +1,9 @@
-use std::{
-    collections::VecDeque,
-    io::Write,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::{collections::VecDeque, sync::Arc};
 
-use futures_util::FutureExt;
-use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde::{Deserialize, Serialize};
-use serde_json::to_string;
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::{mpsc, Mutex, Notify};
+use tokio::sync::Mutex;
 
-use common::{
-    message::{
-        client_message::{
-            GetCardsMessage, JoinRoomMessage, LeaveRoomMessage, ListPlacesMessage,
-            ListRoomsMessage, LoginMessage, MakeBidMessage, MakeTrickMessage, RegisterRoomMessage,
-            SelectPlaceMessage, GET_CARDS_MESSAGE, JOIN_ROOM_MESSAGE, LEAVE_ROOM_MESSAGE,
-            LIST_PLACES_MESSAGE, LIST_ROOMS_MESSAGE, LOGIN_MESSAGE, MAKE_BID_MESSAGE,
-            MAKE_TRICK_MESSAGE, REGISTER_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
-        },
-        server_notification::{
-            AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
-            DummyCardsNotification, GameFinishedNotification, GameStartedNotification,
-            JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
-            TrickFinishedNotification, ASK_BID_NOTIFICATION, ASK_TRICK_NOTIFICATION,
-            AUCTION_FINISHED_NOTIFICATION, DUMMY_CARDS_NOTIFICATION, GAME_FINISHED_NOTIFICATION,
-            GAME_STARTED_NOTIFICATION, JOIN_ROOM_NOTIFICATION, LEAVE_ROOM_NOTIFICATION,
-            SELECT_PLACE_NOTIFICATION, TRICK_FINISHED_NOTIFICATION,
-        },
-        server_response::{
-            GetCardsResponse, LeaveRoomResponse, ListPlacesResponse, ListRoomsResponse,
-            LoginResponse, MakeBidResponse, MakeTrickResponse, SelectPlaceResponse,
-            GET_CARDS_RESPONSE, JOIN_ROOM_RESPONSE, LEAVE_ROOM_RESPONSE, LIST_PLACES_RESPONSE,
-            LIST_ROOMS_RESPONSE, LOGIN_RESPONSE, MAKE_BID_RESPONSE, MAKE_TRICK_RESPONSE,
-            REGISTER_ROOM_RESPONSE, SELECT_PLACE_RESPONSE,
-        },
-    },
-    room::{RoomId, RoomInfo, Visibility},
-    user::User,
-    Bid, BidType, Card, Player, Rank, Suit,
-};
+use common::{user::User, Bid, Card, Player};
 
 use crate::gui_notification::Notification;
 

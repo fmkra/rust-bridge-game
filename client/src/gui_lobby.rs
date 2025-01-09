@@ -1,8 +1,9 @@
 use crate::gui_client::GuiClientState;
 
 use common::{
-    message::client_message::{
-        JoinRoomMessage, ListRoomsMessage, JOIN_ROOM_MESSAGE, LIST_ROOMS_MESSAGE,
+    message::{
+        client_message::{JoinRoomMessage, ListRoomsMessage},
+        MessageTrait,
     },
     room::RoomId,
 };
@@ -35,7 +36,10 @@ pub fn list_rooms(
             let socket_clone = socket.clone();
             runtime.spawn(async move {
                 socket_clone
-                    .emit(LIST_ROOMS_MESSAGE, to_string(&ListRoomsMessage {}).unwrap())
+                    .emit(
+                        ListRoomsMessage::MSG_TYPE,
+                        to_string(&ListRoomsMessage {}).unwrap(),
+                    )
                     .await
                     .unwrap();
             });
@@ -64,7 +68,7 @@ pub fn list_rooms(
                     runtime.spawn(async move {
                         socket_clone
                             .emit(
-                                JOIN_ROOM_MESSAGE,
+                                JoinRoomMessage::MSG_TYPE,
                                 to_string(&JoinRoomMessage { room_id }).unwrap(),
                             )
                             .await

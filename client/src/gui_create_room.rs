@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use common::message::MessageTrait;
 use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
@@ -7,7 +8,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
 use common::{
-    message::client_message::{RegisterRoomMessage, REGISTER_ROOM_MESSAGE},
+    message::client_message::RegisterRoomMessage,
     room::{RoomId, RoomInfo, Visibility},
 };
 
@@ -44,7 +45,7 @@ pub fn create_room_ui(
             let socket_clone = socket.clone();
             runtime.spawn(async move {
                 socket_clone
-                    .emit(REGISTER_ROOM_MESSAGE, to_string(&msg).unwrap())
+                    .emit(RegisterRoomMessage::MSG_TYPE, to_string(&msg).unwrap())
                     .await
                     .unwrap();
             });

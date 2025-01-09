@@ -1,3 +1,4 @@
+use common::message::MessageTrait;
 use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
@@ -7,9 +8,7 @@ use tokio::sync::Mutex;
 use crate::gui_client::GuiClientState;
 
 use common::{
-    message::client_message::{
-        LeaveRoomMessage, SelectPlaceMessage, LEAVE_ROOM_MESSAGE, SELECT_PLACE_MESSAGE,
-    },
+    message::client_message::{LeaveRoomMessage, SelectPlaceMessage},
     user::User,
     Player,
 };
@@ -48,7 +47,10 @@ pub fn room_ui(
             let socket_clone = socket.clone();
             runtime.spawn(async move {
                 socket_clone
-                    .emit(LEAVE_ROOM_MESSAGE, to_string(&LeaveRoomMessage {}).unwrap())
+                    .emit(
+                        LeaveRoomMessage::MSG_TYPE,
+                        to_string(&LeaveRoomMessage {}).unwrap(),
+                    )
                     .await
                     .unwrap();
             });
@@ -83,7 +85,7 @@ pub fn room_ui(
                         runtime.spawn(async move {
                             socket_clone
                                 .emit(
-                                    SELECT_PLACE_MESSAGE,
+                                    SelectPlaceMessage::MSG_TYPE,
                                     to_string(&SelectPlaceMessage {
                                         position: Some(position),
                                     })

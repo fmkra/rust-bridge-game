@@ -66,12 +66,7 @@ impl<T: MessageTrait + Serialize + Send + Sync> SendableNotification for T {
     fn send<'a>(&'a self, socket: &'a SocketRef) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         let socket = socket.clone();
         Box::pin(async move {
-            // send(&socket, self);
-            socket
-                .emit_with_ack::<_, String>(Self::MSG_TYPE, self)
-                .unwrap()
-                .await
-                .unwrap();
+            send(&socket, self);
         })
     }
 }
