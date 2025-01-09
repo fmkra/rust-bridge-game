@@ -420,7 +420,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 TrickStatus::TrickInProgress => {
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
-                        notifications.push(notify(&s, &room_id, DummyCardsNotification::from(room_lock.game.get_dummy().unwrap().clone())));
+                        let msg = DummyCardsNotification::new(room_lock.game.get_dummy_cards().unwrap().clone(), 
+                        room_lock.game.get_dummy_player().unwrap());
+                        notifications.push(notify(&s, &room_id, msg));
                     }
                 }
                 TrickStatus::TrickFinished(trick_state) => {
