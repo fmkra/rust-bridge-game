@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::card::Suit;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum BidType {
@@ -50,6 +50,18 @@ impl Bid {
             Self::Play(number, typ) => format!("{} {}", number, typ.to_str()),
             Self::Double => "Double".into(),
             Self::Redouble => "Redouble".into(),
+        }
+    }
+}
+
+impl fmt::Display for Bid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Bid::Pass => write!(f, "Pass"),
+            Bid::Double => write!(f, "Double"),
+            Bid::Redouble => write!(f, "Redouble"),
+            Bid::Play(number, BidType::Trump(suit)) => write!(f, "{} of {}", number, suit.to_str()),
+            Bid::Play(number, BidType::NoTrump) => write!(f, "{} No Trump", number),
         }
     }
 }

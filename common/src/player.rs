@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Deserialize, Serialize)]
 pub enum Player {
@@ -13,6 +14,10 @@ pub enum Player {
 impl Player {
     pub fn next(&self) -> Player {
         self.skip(1)
+    }
+
+    pub fn prev(&self) -> Player {
+        self.skip(3)
     }
 
     pub fn skip(&self, num_skips: usize) -> Player {
@@ -45,11 +50,26 @@ impl Player {
         }
     }
 
+    pub fn to_str(&self) -> &str {
+        match self {
+            Player::North => "North",
+            Player::East => "East",
+            Player::South => "South",
+            Player::West => "West",
+        }
+    }
+
     pub fn to_u8(&self) -> u8 {
         *self as u8
     }
 
     pub fn to_usize(&self) -> usize {
         *self as usize
+    }
+}
+
+impl fmt::Display for Player {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_str())
     }
 }

@@ -373,14 +373,15 @@ pub mod server_notification {
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct DummyCardsNotification {
         pub cards: Vec<Card>,
+        pub dummy: Player,
     }
     impl MessageTrait for DummyCardsNotification {
         const MSG_TYPE: &'static str = "dummy_cards_notification";
     }
 
-    impl From<Vec<Card>> for DummyCardsNotification {
-        fn from(cards: Vec<Card>) -> Self {
-            DummyCardsNotification { cards }
+    impl DummyCardsNotification {
+        pub fn new(cards: Vec<Card>, dummy: Player) -> Self {
+            DummyCardsNotification { cards, dummy }
         }
     }
 }

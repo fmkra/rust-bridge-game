@@ -95,12 +95,21 @@ impl Suit {
         *self == Suit::Hearts || *self == Suit::Spades
     }
 
+    pub fn suit_name(&self) -> &str {
+        match self {
+            Suit::Clubs => "Clubs",
+            Suit::Diamonds => "Diamonds",
+            Suit::Hearts => "Hearts",
+            Suit::Spades => "Spades",
+        }
+    }
+
     pub fn to_str(&self) -> &str {
         match self {
-            Suit::Clubs => "♣",
-            Suit::Diamonds => "♦",
-            Suit::Hearts => "♥",
-            Suit::Spades => "♠",
+            Suit::Clubs => "C",
+            Suit::Diamonds => "D",
+            Suit::Hearts => "H",
+            Suit::Spades => "S",
         }
     }
 }

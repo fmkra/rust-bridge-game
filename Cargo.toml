@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "client",
     "old_client",
     "server",
     "common"

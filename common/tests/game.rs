@@ -461,13 +461,13 @@ fn game_evaluate() {
 }
 
 #[test]
-fn game_get_dummy() {
+fn game_get_dummy_cards() {
     let game = Game::new();
-    assert_eq!(None, game.get_dummy());
+    assert_eq!(None, game.get_dummy_cards());
 
     let mut game2 = Game::new();
     game2.state = GameState::Tricking;
-    assert_eq!(None, game2.get_dummy());
+    assert_eq!(None, game2.get_dummy_cards());
 
     let cards = vec![
         Card::new(Rank::Queen, Suit::Spades),
@@ -482,7 +482,7 @@ fn game_get_dummy() {
     game2.player_cards[2] = cards.clone();
     game2.trick_no = 0;
     game2.current_trick.push(Card::new(Rank::Ace, Suit::Spades));
-    assert_eq!(Some(&cards), game2.get_dummy());
+    assert_eq!(Some(&cards), game2.get_dummy_cards());
 }
 
 #[test]
