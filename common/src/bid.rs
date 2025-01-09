@@ -70,10 +70,8 @@ impl Ord for Bid {
     fn cmp(&self, other: &Self) -> Ordering {
         let self_u8 = self.to_u8();
         let other_u8 = other.to_u8();
-        if self_u8 < other_u8 {
-            Ordering::Less
-        } else if self_u8 == other_u8 {
-            match (self, other) {
+        match self_u8.cmp(&other_u8) {
+            Ordering::Equal => match (self, other) {
                 (Bid::Play(self_number, self_type), Bid::Play(other_number, other_type)) => {
                     match self_number.cmp(other_number) {
                         Ordering::Equal => self_type.cmp(other_type),
@@ -81,9 +79,8 @@ impl Ord for Bid {
                     }
                 }
                 _ => Ordering::Equal,
-            }
-        } else {
-            Ordering::Greater
+            },
+            x => x,
         }
     }
 }

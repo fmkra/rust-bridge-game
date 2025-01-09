@@ -51,7 +51,7 @@ where
 {
     let data = socket.extensions.get::<ClientData>();
     if data.is_none() {
-        send(&socket, response);
+        send(socket, response);
     }
     data
 }

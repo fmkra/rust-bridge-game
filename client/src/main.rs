@@ -262,50 +262,46 @@ async fn main() {
                         let client = client.clone();
                         let input_selected_seat_arc = input_selected_seat_clone.clone();
                         async move {
-                            match payload {
-                                Payload::Text(text) => {
-                                    let msg = serde_json::from_value::<SelectPlaceResponse>(
-                                        text[0].clone(),
-                                    )
-                                    .unwrap();
-                                    match msg {
-                                        SelectPlaceResponse::Ok => {
-                                            {
-                                                let input_selected_seat_val =
-                                                    input_selected_seat_arc.lock().await;
+                            if let Payload::Text(text) = payload {
+                                let msg =
+                                    serde_json::from_value::<SelectPlaceResponse>(text[0].clone())
+                                        .unwrap();
+                                match msg {
+                                    SelectPlaceResponse::Ok => {
+                                        {
+                                            let input_selected_seat_val =
+                                                input_selected_seat_arc.lock().await;
 
-                                                client.lock().await.selected_seat =
-                                                    *input_selected_seat_val;
-                                            };
-                                            // Refreshes the seats
-                                            c.emit(
-                                                ListPlacesMessage::MSG_TYPE,
-                                                to_string(&ListPlacesMessage {}).unwrap(),
-                                            )
-                                            .await
-                                            .unwrap();
-                                        }
-                                        SelectPlaceResponse::NotInRoom => {
-                                            create_error_notification(
-                                                String::from("You are not in a room"),
-                                                client,
-                                            );
-                                        }
-                                        SelectPlaceResponse::PlaceAlreadyTaken => {
-                                            create_error_notification(
-                                                String::from("Place is already taken"),
-                                                client,
-                                            );
-                                        }
-                                        SelectPlaceResponse::Unauthenticated => {
-                                            create_error_notification(
-                                                String::from("You are not authenticated"),
-                                                client,
-                                            );
-                                        }
-                                    };
-                                }
-                                _ => return,
+                                            client.lock().await.selected_seat =
+                                                *input_selected_seat_val;
+                                        };
+                                        // Refreshes the seats
+                                        c.emit(
+                                            ListPlacesMessage::MSG_TYPE,
+                                            to_string(&ListPlacesMessage {}).unwrap(),
+                                        )
+                                        .await
+                                        .unwrap();
+                                    }
+                                    SelectPlaceResponse::NotInRoom => {
+                                        create_error_notification(
+                                            String::from("You are not in a room"),
+                                            client,
+                                        );
+                                    }
+                                    SelectPlaceResponse::PlaceAlreadyTaken => {
+                                        create_error_notification(
+                                            String::from("Place is already taken"),
+                                            client,
+                                        );
+                                    }
+                                    SelectPlaceResponse::Unauthenticated => {
+                                        create_error_notification(
+                                            String::from("You are not authenticated"),
+                                            client,
+                                        );
+                                    }
+                                };
                             };
                         }
                         .boxed()

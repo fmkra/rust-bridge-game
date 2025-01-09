@@ -73,22 +73,20 @@ pub async fn room_ui(
             ui.group(hash!(position_name), vec2(400.0, 50.0), |ui| {
                 if let Some(user) = seat {
                     ui.label(None, &format!("{}: {}", position_name, user.get_username()));
-                } else {
-                    if ui.button(None, format!("Join {}", position_name).as_str()) {
-                        let socket_clone = socket.clone();
-                        runtime.spawn(async move {
-                            socket_clone
-                                .emit(
-                                    SelectPlaceMessage::MSG_TYPE,
-                                    to_string(&SelectPlaceMessage {
-                                        position: Some(position),
-                                    })
-                                    .unwrap(),
-                                )
-                                .await
-                                .unwrap();
-                        });
-                    }
+                } else if ui.button(None, format!("Join {}", position_name).as_str()) {
+                    let socket_clone = socket.clone();
+                    runtime.spawn(async move {
+                        socket_clone
+                            .emit(
+                                SelectPlaceMessage::MSG_TYPE,
+                                to_string(&SelectPlaceMessage {
+                                    position: Some(position),
+                                })
+                                .unwrap(),
+                            )
+                            .await
+                            .unwrap();
+                    });
                 }
             });
         }

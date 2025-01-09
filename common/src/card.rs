@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bid::BidType;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Rank {
@@ -61,23 +61,27 @@ impl Rank {
             Rank::Ace => "A",
         }
     }
+}
 
-    pub fn from_str(value: &str) -> Option<Self> {
-        match value {
-            "2" => Some(Rank::Two),
-            "3" => Some(Rank::Three),
-            "4" => Some(Rank::Four),
-            "5" => Some(Rank::Five),
-            "6" => Some(Rank::Six),
-            "7" => Some(Rank::Seven),
-            "8" => Some(Rank::Eight),
-            "9" => Some(Rank::Nine),
-            "10" => Some(Rank::Ten),
-            "J" => Some(Rank::Jack),
-            "Q" => Some(Rank::Queen),
-            "K" => Some(Rank::King),
-            "A" => Some(Rank::Ace),
-            _ => None,
+impl FromStr for Rank {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "2" => Ok(Rank::Two),
+            "3" => Ok(Rank::Three),
+            "4" => Ok(Rank::Four),
+            "5" => Ok(Rank::Five),
+            "6" => Ok(Rank::Six),
+            "7" => Ok(Rank::Seven),
+            "8" => Ok(Rank::Eight),
+            "9" => Ok(Rank::Nine),
+            "10" => Ok(Rank::Ten),
+            "J" => Ok(Rank::Jack),
+            "Q" => Ok(Rank::Queen),
+            "K" => Ok(Rank::King),
+            "A" => Ok(Rank::Ace),
+            _ => Err(()),
         }
     }
 }
@@ -139,9 +143,11 @@ impl Card {
             }
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("{}{}", self.rank.to_str(), self.suit.to_str())
+impl Display for Card {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.rank.to_str(), self.suit.to_str())
     }
 }
 

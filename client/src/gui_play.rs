@@ -421,7 +421,7 @@ pub async fn play_ui(
         .collect();
 
     // Retrieve the current trick cards
-    let current_trick = client_lock.current_placed_cards.clone();
+    let current_trick = client_lock.current_placed_cards;
 
     // Card dimensions
     let card_texture_width = grid_cell_size * 2.0;
@@ -494,7 +494,7 @@ pub async fn play_ui(
     }
 
     // Additional row for DOUBLE, PASS, REDOUBLE
-    let extra_row_y = grid_y + 7 as f32 * (grid_cell_size + grid_spacing);
+    let extra_row_y = grid_y + 7_f32 * (grid_cell_size + grid_spacing);
     let extra_bids = [Bid::Double, Bid::Pass, Bid::Redouble];
     let extra_textures = ["DOUBLE", "PASS", "REDOUBLE"];
 
@@ -566,7 +566,7 @@ pub async fn play_ui(
         // Handle clicks in reverse order to respect the overlapping priority
         for (i, card) in cards.iter().enumerate().rev() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
-            if let Some(_) = card_textures.get(&card_name) {
+            if card_textures.get(&card_name).is_some() {
                 let card_x = x_offset + i as f32 * card_spacing;
 
                 if clicked_card.is_none()
@@ -576,7 +576,7 @@ pub async fn play_ui(
                     && mouse_position().1 >= pile_y
                     && mouse_position().1 <= pile_y + card_width
                 {
-                    clicked_card = Some(card.clone());
+                    clicked_card = Some(*card);
                     break; // Stop checking once the topmost card is clicked
                 }
             }

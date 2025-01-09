@@ -258,13 +258,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let (game_started_notification, first_player, previous_game_state) = {
                         let mut room_lock = room.write().await;
-                        let previous_game_state = room_lock.game.state.clone();
+                        let previous_game_state = room_lock.game.state;
                         if previous_game_state == GameState::WaitingForPlayers {
                             room_lock.game.start();
                         }
                         let msg = GameStartedNotification {
                             start_position: room_lock.game.current_player,
-                            player_position: player_position,
+                            player_position,
                         };
                         (msg, room_lock.game.current_player, previous_game_state)
                     };
