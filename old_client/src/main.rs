@@ -529,7 +529,7 @@ async fn main() {
 
                 let msg = RegisterRoomMessage {
                     room_info: RoomInfo {
-                        id: RoomId::new(room_name),
+                        id: RoomId::new(room_name.into()),
                         visibility: Visibility::Public,
                     },
                 };
@@ -550,7 +550,7 @@ async fn main() {
             };
 
             let msg = JoinRoomMessage {
-                room_id: RoomId::new(&room_id),
+                room_id: RoomId::new(room_id.clone().into()),
             };
 
             socket
