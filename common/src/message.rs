@@ -367,7 +367,7 @@ pub mod server_response {
 
 pub mod server_notification {
     use super::*;
-    use crate::{Bid, Card, GameResult, GameValue, Player, TrickState};
+    use crate::{game::DealFinished, Bid, Card, GameResult, GameValue, Player, TrickState};
 
     /// Notification sent by server to all users in the room when a new user joins
     #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -516,6 +516,25 @@ pub mod server_notification {
     impl DummyCardsNotification {
         pub fn new(cards: Vec<Card>, dummy: Player) -> Self {
             DummyCardsNotification { cards, dummy }
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct DealFinishedNotification {
+        pub points: [usize; 4],
+        pub game_wins: [usize; 4],
+    }
+
+    impl MessageTrait for DealFinishedNotification {
+        const MSG_TYPE: &'static str = "deal_finished_notification";
+    }
+
+    impl From<DealFinished> for DealFinishedNotification {
+        fn from(deal_finished: DealFinished) -> Self {
+            DealFinishedNotification {
+                points: deal_finished.points,
+                game_wins: deal_finished.game_wins,
+            }
         }
     }
 }

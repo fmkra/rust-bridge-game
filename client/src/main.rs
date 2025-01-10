@@ -4,6 +4,7 @@ mod notifications;
 mod utils;
 
 use client::{Client, ClientState};
+use common::message::server_notification::DealFinishedNotification;
 use gui::create_room::create_room_ui;
 use gui::lobby::list_rooms;
 use gui::login::login_ui;
@@ -420,6 +421,18 @@ async fn main() {
                         .join(" "),
                     msg.taker
                 )));
+            }
+        );
+
+        add_handler!(
+            builder,
+            DealFinishedNotification,
+            client,
+            notifier,
+            |_client, notifier, msg, _s| {
+                notifier.create_info(String::from("Deal finished!"));
+                sleep(Duration::from_secs(5)).await;
+                notifier.create_info(format!("Points: {:?}", msg.points));
             }
         );
 

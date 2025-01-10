@@ -6,7 +6,7 @@ use common::message::client_message::{
     MakeTrickMessage,
 };
 use common::message::server_notification::{
-    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, MakeTrickNotification, TrickFinishedNotification
+    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DealFinishedNotification, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, MakeTrickNotification, TrickFinishedNotification
 };
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse};
 use common::message::{
@@ -358,6 +358,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             max_bid: room_lock.game.max_bid,
                         }));
                     } else {
+                        sleep(Duration::from_secs(2)).await;
+
                         notifications.push(notify(&s, &room_lock.info.id, AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
                             winner: room_lock.game.max_bidder,
                             max_bid: room_lock.game.max_bid,
@@ -400,16 +402,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let trick_result = room_lock.game.trick(&player, &data.card);
             send(&s, &MakeTrickResponse::from(&trick_result));
 
+            
             let mut notifications = Vec::new();
+
+            if let TrickStatus::Error(_) = trick_result {
+                return;
+            }
+
+            notifications.push(notify(&s, &room_id, MakeTrickNotification {
+                player,
+                card: data.card,
+            }));
+
             match trick_result {
-                TrickStatus::Error(_) => {
-                    return
-                },
                 TrickStatus::TrickInProgress => {
-                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
-                        player,
-                        card: data.card,
-                    }));
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
                         let msg = DummyCardsNotification::new(room_lock.game.get_dummy_cards().unwrap().clone(), 
                         room_lock.game.get_dummy_player().unwrap());
@@ -417,32 +423,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 TrickStatus::TrickFinished(trick_state) => {
-                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
-                        player,
-                        card: data.card,
-                    }));
-
                     sleep(Duration::from_secs(2)).await;
 
                     notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(trick_state)));
                 }
                 TrickStatus::DealFinished(deal_finished) => {
-                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
-                        player,
-                        card: data.card,
-                    }));
+                    sleep(Duration::from_secs(2)).await;
+
+                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(deal_finished.trick_state.clone())));
 
                     sleep(Duration::from_secs(2)).await;
 
-                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(deal_finished.trick_state)));
-
-                    // TODO: send deal finished and game finished notification
-                    // if let Some(game_result) = room_lock.game.evaluate() {
-                    // s.within(RoomWrapper(room_id.clone())).emit(GAME_FINISHED_NOTIFICATION, &GameFinishedNotification::from(game_result)).unwrap();
-                    //     return;
-                    // }
+                    notifications.push(notify(&s, &room_id, DealFinishedNotification::from(deal_finished)));
 
                 }
+                TrickStatus::Error(_) => ()
             }
 
             notifications.push(notify(&s, &room_id, AskTrickNotification {
