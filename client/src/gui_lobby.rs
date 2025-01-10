@@ -51,7 +51,7 @@ pub fn list_rooms(
                 ui.label(None, &format!("Room ID: {}", room));
                 if ui.button(None, "Join") {
                     let room_id = RoomId::new(room);
-                    client.selected_room_name = Some(room.clone());
+                    client.selected_room_name = room.clone();
                     let socket_clone = socket.clone();
                     runtime.spawn(async move {
                         socket_clone

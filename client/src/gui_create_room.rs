@@ -12,32 +12,23 @@ use common::{
     room::{RoomId, RoomInfo, Visibility},
 };
 
+use crate::gui_client::GuiClient;
+
 pub fn create_room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    room_name_arc: Arc<Mutex<String>>,
+    client: &mut GuiClient,
 ) {
-    let mut room_name = {
-        let state_lock = room_name_arc.blocking_lock();
-        state_lock.clone()
-    };
-
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 150.0), |ui| {
         ui.label(None, "Enter Room Name:");
-        ui.input_text(hash!(), "Room Name:", &mut room_name);
-
-        // Update the room_name_arc with the current room_name
-        {
-            let mut state_lock = room_name_arc.blocking_lock();
-            *state_lock = room_name.clone();
-        }
+        ui.input_text(hash!(), "Room Name:", &mut client.selected_room_name);
 
         if ui.button(None, "Confirm") || is_key_pressed(KeyCode::Enter) {
             let msg = RegisterRoomMessage {
                 room_info: RoomInfo {
-                    id: RoomId::new(&room_name),
+                    id: RoomId::new(&client.selected_room_name),
                     visibility: Visibility::Public,
                 },
             };

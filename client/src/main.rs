@@ -51,12 +51,6 @@ async fn main() {
     let client = Arc::new(Mutex::new(GuiClient::new()));
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
     // Clones of Arcs used in handling gui inputs
-    let input_created_room_name = Arc::new(Mutex::new(String::new()));
-    let input_created_room_name_clone = input_created_room_name.clone();
-    let input_selected_room_name: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-    let input_selected_room_name_clone: Arc<Mutex<Option<String>>> =
-        input_selected_room_name.clone();
-    let input_selected_room_name_clone_1 = input_selected_room_name_clone.clone();
     let input_selected_seat: Arc<Mutex<Option<Player>>> = Arc::new(Mutex::new(None));
     let input_selected_seat_clone = input_selected_seat.clone();
     let input_placed_bid: Arc<Mutex<Option<Bid>>> = Arc::new(Mutex::new(None));
@@ -68,6 +62,7 @@ async fn main() {
     let notifier = Notifier::new();
     let notifier_clone_0 = notifier.clone();
     let notifier_clone_1 = notifier.clone();
+    let notifier_clone_2 = notifier.clone();
     let notifier_clone_2 = notifier.clone();
     let notifier_clone_3 = notifier.clone();
     let notifier_clone_4 = notifier.clone();
@@ -84,6 +79,7 @@ async fn main() {
     let client_clone_0 = client.clone();
     let client_clone_1 = client.clone();
     let client_clone_2 = client.clone();
+    let client_clone_2_5 = client.clone();
     let client_clone_3 = client.clone();
     let client_clone_4 = client.clone();
     let client_clone_5 = client.clone();
@@ -161,22 +157,13 @@ async fn main() {
                     .boxed()
                 })
                 .on(RegisterRoomResponse::MSG_TYPE, move |_, c| {
-                    let input_selected_room_name_arc = input_selected_room_name_clone.clone();
-                    let input_created_room_name_arc = input_created_room_name_clone.clone();
+                    let client = client_clone_2_5.clone();
                     async move {
-                        let room_id = {
-                            let mut input_selected_room_name_val =
-                                input_selected_room_name_arc.lock().await;
-                            let input_created_room_name_val =
-                                input_created_room_name_arc.lock().await;
-                            *input_selected_room_name_val =
-                                Some(input_created_room_name_val.clone());
-                            input_created_room_name_val.clone()
-                        };
+                        let room_id = client.lock().await.selected_room_name.clone();
                         c.emit(
                             JoinRoomMessage::MSG_TYPE,
                             to_string(&JoinRoomMessage {
-                                room_id: RoomId::new(room_id.as_str()),
+                                room_id: RoomId::new(&room_id),
                             })
                             .unwrap(),
                         )
@@ -188,7 +175,6 @@ async fn main() {
                 .on(JoinRoomResponse::MSG_TYPE, move |payload, c| {
                     let client = client_clone_2.clone();
                     let notifier = notifier_clone_2.clone();
-                    let input_selected_room_name_arc = input_selected_room_name_clone_1.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -201,11 +187,6 @@ async fn main() {
                                 {
                                     let mut client_lock = client.lock().await;
                                     client_lock.state = GuiClientState::InRoom;
-
-                                    let input_selected_room_name_val =
-                                        input_selected_room_name_arc.lock().await;
-                                    client_lock.selected_room_name =
-                                        input_selected_room_name_val.clone();
                                 }
                                 c.emit(
                                     ListPlacesMessage::MSG_TYPE,
@@ -687,7 +668,7 @@ async fn main() {
                         {
                             let mut client_lock = client.lock().await;
                             client_lock.state = GuiClientState::InLobby;
-                            client_lock.selected_room_name = None;
+                            client_lock.selected_room_name = String::new();
                             client_lock.seats = [None, None, None, None];
                             client_lock.selected_seat = None;
                             client_lock.card_list = None;
@@ -729,7 +710,7 @@ async fn main() {
                 list_rooms(socket.clone(), &runtime, &mut client_lock);
             }
             GuiClientState::CreatingRoom => {
-                create_room_ui(socket.clone(), &runtime, input_created_room_name.clone());
+                create_room_ui(socket.clone(), &runtime, &mut client_lock);
             }
             GuiClientState::InRoom => {
                 room_ui(

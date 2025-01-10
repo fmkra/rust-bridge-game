@@ -16,17 +16,13 @@ use common::{
 pub fn room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &tokio::runtime::Runtime,
-    room_name: Option<String>,
+    room_name: String,
     seats: [Option<User>; 4],
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 400.0), |ui| {
-        if let Some(room_name) = room_name {
-            ui.label(None, &format!("Room Name: {}", room_name));
-        } else {
-            ui.label(None, "Room Name: Unknown");
-        }
+        ui.label(None, &format!("Room Name: {}", room_name));
 
         ui.separator();
 
