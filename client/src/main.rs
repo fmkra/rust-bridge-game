@@ -51,8 +51,6 @@ async fn main() {
     let client = Arc::new(Mutex::new(GuiClient::new()));
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
     // Clones of Arcs used in handling gui inputs
-    let input_selected_seat: Arc<Mutex<Option<Player>>> = Arc::new(Mutex::new(None));
-    let input_selected_seat_clone = input_selected_seat.clone();
     let input_placed_bid: Arc<Mutex<Option<Bid>>> = Arc::new(Mutex::new(None));
     let input_placed_bid_clone = input_placed_bid.clone();
     let input_placed_bid_clone_1 = input_placed_bid.clone();
@@ -237,7 +235,6 @@ async fn main() {
                 .on(SelectPlaceResponse::MSG_TYPE, move |payload, c| {
                     let client = client_clone_4.clone();
                     let notifier = notifier_clone_3.clone();
-                    let input_selected_seat_arc = input_selected_seat_clone.clone();
                     async move {
                         match payload {
                             Payload::Text(text) => {
@@ -246,13 +243,6 @@ async fn main() {
                                         .unwrap();
                                 match msg {
                                     SelectPlaceResponse::Ok => {
-                                        {
-                                            let mut client_lock = client.lock().await;
-                                            let input_selected_seat_val =
-                                                input_selected_seat_arc.lock().await;
-                                            client_lock.selected_seat = *input_selected_seat_val;
-                                        };
-                                        // Refreshes the seats
                                         c.emit(
                                             ListPlacesMessage::MSG_TYPE,
                                             to_string(&ListPlacesMessage {}).unwrap(),
@@ -713,12 +703,7 @@ async fn main() {
                 create_room_ui(socket.clone(), &runtime, &mut client_lock);
             }
             GuiClientState::InRoom => {
-                room_ui(
-                    socket.clone(),
-                    &runtime,
-                    client_lock.selected_room_name.clone(),
-                    client_lock.seats.clone(),
-                );
+                room_ui(socket.clone(), &runtime, &mut client_lock);
             }
             GuiClientState::Playing => {
                 play_ui(

@@ -3,9 +3,8 @@ use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
-use crate::gui_client::GuiClientState;
+use crate::gui_client::GuiClient;
 
 use common::{
     message::client_message::{LeaveRoomMessage, SelectPlaceMessage},
@@ -16,13 +15,12 @@ use common::{
 pub fn room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &tokio::runtime::Runtime,
-    room_name: String,
-    seats: [Option<User>; 4],
+    client: &mut GuiClient,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 400.0), |ui| {
-        ui.label(None, &format!("Room Name: {}", room_name));
+        ui.label(None, &format!("Room Name: {}", client.selected_room_name));
 
         ui.separator();
 
@@ -58,13 +56,14 @@ pub fn room_ui(
         for ((&position, &position_name), seat) in POSITIONS
             .iter()
             .zip(POSITION_NAMES.iter())
-            .zip(seats.iter())
+            .zip(client.seats.iter())
         {
             ui.group(hash!(position_name), vec2(400.0, 50.0), |ui| {
                 if let Some(user) = seat {
                     ui.label(None, &format!("{}: {}", position_name, user.get_username()));
                 } else {
                     if ui.button(None, format!("Join {}", position_name).as_str()) {
+                        client.selected_seat = Some(position);
                         let socket_clone = socket.clone();
                         runtime.spawn(async move {
                             socket_clone
