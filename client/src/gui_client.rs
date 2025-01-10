@@ -15,7 +15,7 @@ pub enum GuiClientState {
 }
 
 pub struct GuiClient {
-    pub name: Option<String>,
+    pub name: String,
     pub state: GuiClientState,
     pub rooms: Vec<String>,
     pub selected_room_name: Option<String>,
@@ -35,7 +35,7 @@ pub struct GuiClient {
 impl GuiClient {
     pub fn new() -> GuiClient {
         GuiClient {
-            name: None,
+            name: String::new(),
             state: GuiClientState::Logging,
             rooms: Vec::new(),
             selected_room_name: None,

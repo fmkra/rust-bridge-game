@@ -5,30 +5,19 @@ use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
 
 use common::{message::client_message::LoginMessage, user::User};
 
 pub fn login_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    nickname_arc: Arc<Mutex<String>>,
+    nickname: &mut String,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
-    let mut nickname = {
-        let nickname_lock = nickname_arc.blocking_lock();
-        nickname_lock.clone()
-    };
-
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 150.0), |ui| {
         ui.label(None, "Enter your nickname:");
-        ui.input_text(hash!(), "Nickname:", &mut nickname);
-
-        {
-            let mut nickname_lock = nickname_arc.blocking_lock();
-            *nickname_lock = nickname.clone();
-        }
+        ui.input_text(hash!(), "Nickname:", nickname);
 
         if ui.button(None, "Confirm") || is_key_pressed(KeyCode::Enter) {
             let login_message = LoginMessage {

@@ -51,8 +51,6 @@ async fn main() {
     let client = Arc::new(Mutex::new(GuiClient::new()));
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
     // Clones of Arcs used in handling gui inputs
-    let input_nickname = Arc::new(Mutex::new(String::new()));
-    let input_nickname_clone = input_nickname.clone();
     let input_created_room_name = Arc::new(Mutex::new(String::new()));
     let input_created_room_name_clone = input_created_room_name.clone();
     let input_selected_room_name: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -110,7 +108,6 @@ async fn main() {
                 .on(LoginResponse::MSG_TYPE, move |payload, c| {
                     let client = client_clone_0.clone();
                     let notifier = notifier_clone_0.clone();
-                    let nickname = input_nickname_clone.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -124,9 +121,6 @@ async fn main() {
                                 println!("Login successful!");
                                 {
                                     let mut client_lock = client.lock().await;
-
-                                    let nickname_val = nickname.lock().await;
-                                    client_lock.name = Some(nickname_val.clone());
                                     client_lock.state = GuiClientState::InLobby;
                                 }
 
@@ -729,7 +723,7 @@ async fn main() {
 
         match current_state {
             GuiClientState::Logging => {
-                login_ui(socket.clone(), &runtime, input_nickname.clone());
+                login_ui(socket.clone(), &runtime, &mut client_lock.name);
             }
             GuiClientState::InLobby => {
                 list_rooms(socket.clone(), &runtime, &mut client_lock);
