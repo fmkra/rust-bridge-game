@@ -1,11 +1,12 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use common::message::client_message::{
     GetCardsMessage, LeaveRoomMessage, ListPlacesMessage, ListRoomsMessage, MakeBidMessage,
     MakeTrickMessage,
 };
 use common::message::server_notification::{
-    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, TrickFinishedNotification
+    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, MakeTrickNotification, TrickFinishedNotification
 };
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse};
 use common::message::{
@@ -28,7 +29,7 @@ use socketioxide::{
     SocketIo,
 };
 use tokio::sync::RwLock;
-use tokio::time::{sleep, Duration};
+use tokio::time::sleep;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
@@ -421,6 +422,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return
                 },
                 TrickStatus::TrickInProgress => {
+                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
+                        player,
+                        card: data.card,
+                    }));
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
                         let msg = DummyCardsNotification::new(room_lock.game.get_dummy_cards().unwrap().clone(), 
                         room_lock.game.get_dummy_player().unwrap());
@@ -428,10 +433,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 TrickStatus::TrickFinished(trick_state) => {
-                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(trick_state)));
+                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
+                        player,
+                        card: data.card,
+                    }));
 
+                    sleep(Duration::from_secs(2)).await;
+
+                    notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(trick_state)));
                 }
                 TrickStatus::DealFinished(deal_finished) => {
+                    notifications.push(notify(&s, &room_id, MakeTrickNotification {
+                        player,
+                        card: data.card,
+                    }));
+
+                    sleep(Duration::from_secs(2)).await;
+
                     notifications.push(notify(&s, &room_id, TrickFinishedNotification::from(deal_finished.trick_state)));
 
                     // TODO: send deal finished and game finished notification

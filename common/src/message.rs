@@ -337,6 +337,15 @@ pub mod server_notification {
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct MakeTrickNotification {
+        pub player: Player,
+        pub card: Card,
+    }
+    impl MessageTrait for MakeTrickNotification {
+        const MSG_TYPE: &'static str = "make_trick_notification";
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct TrickFinishedNotification {
         pub taker: Player,
         pub cards: Vec<Card>,

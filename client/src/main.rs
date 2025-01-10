@@ -21,7 +21,7 @@ use common::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
             DummyCardsNotification, GameFinishedNotification, GameStartedNotification,
             JoinRoomNotification, LeaveRoomNotification, MakeBidNotification,
-            SelectPlaceNotification, TrickFinishedNotification,
+            MakeTrickNotification, SelectPlaceNotification, TrickFinishedNotification,
         },
         server_response::{
             GetCardsResponse, JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse,
@@ -348,10 +348,6 @@ async fn main() {
             |client, notifier, msg, _s| {
                 let mut client_lock = client.lock().await;
                 client_lock.player_bids[msg.player.to_usize()] = Some(msg.bid);
-                notifier.create_info(String::from(&format!(
-                    "Player {} bid {}",
-                    msg.player, msg.bid
-                )));
             }
         );
 
@@ -446,21 +442,7 @@ async fn main() {
             |client, _notifier, msg, _s| {
                 let mut client_lock = client.lock().await;
 
-                if let Some(dummy_cards) = client_lock.dummy_cards.as_mut() {
-                    if let Some(card) = msg.cards.last() {
-                        dummy_cards.retain(|c| c != card);
-                    }
-                }
-
                 client_lock.game_current_player = Some(msg.player);
-
-                let mut placed_cards: [Option<Card>; 4] = [None, None, None, None];
-                let mut previous_player = msg.player.prev();
-                for el in msg.cards.iter().rev() {
-                    placed_cards[previous_player.to_usize()] = Some(el.clone());
-                    previous_player = previous_player.prev();
-                }
-                client_lock.current_placed_cards = placed_cards;
             }
         );
 
@@ -505,6 +487,29 @@ async fn main() {
 
         add_handler!(
             builder,
+            MakeTrickNotification,
+            client,
+            notifier,
+            |client, _notifier, msg, _s| {
+                let mut client_lock = client.lock().await;
+
+                // Show card on the table
+                client_lock.current_placed_cards[msg.player.to_usize()] = Some(msg.card);
+
+                // Remove card from dummy cards
+                if let Some(dummy_cards) = client_lock.dummy_cards.as_mut() {
+                    dummy_cards.retain(|c| *c != msg.card);
+                }
+
+                // Remove card from my hand
+                if let Some(cards) = client_lock.card_list.as_mut() {
+                    cards.retain(|c| *c != msg.card);
+                }
+            }
+        );
+
+        add_handler!(
+            builder,
             TrickFinishedNotification,
             client,
             notifier,
@@ -512,18 +517,20 @@ async fn main() {
                 {
                     let mut client_lock = client.lock().await;
 
-                    if let Some(dummy_cards) = client_lock.dummy_cards.as_mut() {
-                        if let Some(card) = msg.cards.last() {
-                            dummy_cards.retain(|c| c != card);
-                        }
-                    }
+                    client_lock.current_placed_cards = [None, None, None, None];
 
-                    if let Some(current_player) = client_lock.game_current_player {
-                        let placed_cards = client_lock.current_placed_cards.as_mut();
-                        if let Some(last_tricked) = msg.cards.last() {
-                            placed_cards[current_player.to_usize()] = Some(*last_tricked);
-                        }
-                    }
+                    // if let Some(dummy_cards) = client_lock.dummy_cards.as_mut() {
+                    //     if let Some(card) = msg.cards.last() {
+                    //         dummy_cards.retain(|c| c != card);
+                    //     }
+                    // }
+
+                    // if let Some(current_player) = client_lock.game_current_player {
+                    //     let placed_cards = client_lock.current_placed_cards.as_mut();
+                    //     if let Some(last_tricked) = msg.cards.last() {
+                    //         placed_cards[current_player.to_usize()] = Some(*last_tricked);
+                    //     }
+                    // }
                 }
                 notifier.create_info(String::from(format!(
                     "Trick {} taken by {:?}",

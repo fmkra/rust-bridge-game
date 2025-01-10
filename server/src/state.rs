@@ -102,18 +102,12 @@ impl RoomState {
         notifications: Vec<Box<dyn SendableNotification + Send + Sync>>,
     ) {
         self.sent_notifications.extend(notifications);
-        // self.sent_notifications.reserve(notifications.len());
-        // for notification in notifications {
-        //     self.sent_notifications.push(Box::new(notification));
-        // }
     }
 
     pub async fn send_notifications(&self, socket: &SocketRef) {
-        println!("Sending {} notifications", self.sent_notifications.len());
         for notification in &self.sent_notifications {
             notification.send(socket).await;
-            println!("Notification sent");
-            sleep(Duration::from_secs(5)).await;
+            sleep(Duration::from_secs(2)).await;
         }
     }
 }

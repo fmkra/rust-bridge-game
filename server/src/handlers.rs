@@ -1,11 +1,8 @@
 use std::borrow::Cow;
 
-use common::message::server_notification::TrickFinishedNotification;
-use common::message::MessageTrait;
 use common::room::RoomId;
-use common::TrickState;
 use socketioxide::adapter::Room as SRoom;
-use socketioxide::{extract::SocketRef, operators::RoomParam};
+use socketioxide::operators::RoomParam;
 
 #[derive(Clone)]
 pub struct RoomWrapper(pub RoomId);
