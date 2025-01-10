@@ -31,7 +31,7 @@ use common::{
         MessageTrait,
     },
     room::RoomId,
-    Bid, Card, Player,
+    Bid, Card,
 };
 use futures_util::FutureExt;
 use macroquad::prelude::*;
@@ -50,17 +50,10 @@ async fn main() {
     let card_textures = preload_cards().await;
     let client = Arc::new(Mutex::new(GuiClient::new()));
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
-    // Clones of Arcs used in handling gui inputs
-    let input_placed_bid: Arc<Mutex<Option<Bid>>> = Arc::new(Mutex::new(None));
-    let input_placed_bid_clone = input_placed_bid.clone();
-    let input_placed_bid_clone_1 = input_placed_bid.clone();
-    // let input_selected_bid =
 
-    // Clones of GuiClient Arc fields
     let notifier = Notifier::new();
     let notifier_clone_0 = notifier.clone();
     let notifier_clone_1 = notifier.clone();
-    let notifier_clone_2 = notifier.clone();
     let notifier_clone_2 = notifier.clone();
     let notifier_clone_3 = notifier.clone();
     let notifier_clone_4 = notifier.clone();
@@ -447,7 +440,6 @@ async fn main() {
                 .on(MakeBidResponse::MSG_TYPE, move |payload, _| {
                     let client = client_clone_11.clone();
                     let notifier = notifier_clone_10.clone();
-                    let input_placed_bid_arc = input_placed_bid_clone.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -456,12 +448,7 @@ async fn main() {
                             _ => return,
                         };
                         match msg {
-                            MakeBidResponse::Ok => {
-                                let input_placed_bid = input_placed_bid_arc.lock().await;
-
-                                let mut client_lock = client.lock().await;
-                                client_lock.placed_bid = *input_placed_bid;
-                            }
+                            MakeBidResponse::Ok => {}
                             MakeBidResponse::AuctionNotInProcess => {
                                 notifier.create_error(String::from("Auction is not in process"));
                             }
