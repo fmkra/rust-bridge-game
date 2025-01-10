@@ -5,7 +5,6 @@ use macroquad::prelude::*;
 use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
 use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
 
 use common::{
     message::client_message::RegisterRoomMessage,

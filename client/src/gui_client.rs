@@ -1,7 +1,4 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 
 use common::{user::User, Bid, Card, Player};
 

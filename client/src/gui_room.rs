@@ -8,7 +8,6 @@ use crate::gui_client::GuiClient;
 
 use common::{
     message::client_message::{LeaveRoomMessage, SelectPlaceMessage},
-    user::User,
     Player,
 };
 

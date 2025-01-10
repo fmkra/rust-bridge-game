@@ -1,8 +1,7 @@
 use common::message::MessageTrait;
-use common::user::User;
 use common::{
     message::client_message::{MakeBidMessage, MakeTrickMessage},
-    Bid, BidType, Card, Player, Suit,
+    Bid, BidType, Player, Suit,
 };
 use macroquad::prelude::*;
 use macroquad::texture::{load_texture, DrawTextureParams, Texture2D};
@@ -10,7 +9,6 @@ use serde_json::to_string;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tokio::sync::Mutex;
 
 use crate::gui_client::GuiClient;
 
