@@ -150,6 +150,40 @@ pub fn play_ui(
         }
     };
 
+    // Display max bid info if available
+    if let (Some(max_bid), Some(max_bidder)) = (client.game_max_bid, client.game_max_bidder) {
+        let bidder_username = client.seats[max_bidder.to_usize()]
+            .as_ref()
+            .map(|user| user.get_username())
+            .unwrap_or("Unknown");
+
+        let bid_info = format!(
+            "Auction won by {} ({})",
+            bidder_username,
+            max_bidder.to_str()
+        );
+        let bid_text_size = 25.0;
+        let bid_info_x = 200.0;
+        let bid_info_y = 50.0;
+
+        // Draw player and username
+        draw_text(&bid_info, bid_info_x, bid_info_y, bid_text_size, WHITE);
+
+        // Draw bid icon if textures are available
+        if let Some(bid_texture) = bid_textures.get(&max_bid.to_str()) {
+            draw_texture_ex(
+                bid_texture,
+                bid_info_x + measure_text(&bid_info, None, bid_text_size as u16, 1.0).width + 10.0,
+                bid_info_y - bid_text_size,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(Vec2::new(30.0, 30.0)),
+                    ..Default::default()
+                },
+            );
+        }
+    }
+
     // Bottom (Your seat)
     draw_rectangle(
         square_x + (square_size - rect_width) / 2.0,

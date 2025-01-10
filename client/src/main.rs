@@ -382,11 +382,11 @@ async fn main() {
                     AuctionFinishedNotification::Winner(msg) => msg,
                     AuctionFinishedNotification::NoWinner => panic!("No winner in auction"),
                 };
-                {
-                    let mut client_lock = client.lock().await;
-                    client_lock.game_max_bid = Some(msg.max_bid);
-                    client_lock.game_current_player = Some(msg.winner);
-                }
+                let mut client_lock = client.lock().await;
+                client_lock.game_max_bid = Some(msg.max_bid);
+                client_lock.game_max_bidder = Some(msg.winner);
+                client_lock.game_current_player = Some(msg.winner);
+                client_lock.player_bids = [None, None, None, None];
             }
         );
 
