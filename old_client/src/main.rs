@@ -29,7 +29,7 @@ use common::{
             ListRoomsResponse, LoginResponse, MakeBidResponse, MakeTrickResponse,
             RegisterRoomResponse, SelectPlaceResponse,
         },
-        MessageTrait,
+        GetErrorMessage, MessageTrait,
     },
     room::{RoomId, RoomInfo, Visibility},
     user::User,
@@ -97,12 +97,8 @@ async fn main() {
                         .unwrap();
                         select_username_tx.send(true).await.unwrap();
                     }
-                    LoginResponse::UsernameAlreadyExists => {
-                        println!("Username already exists");
-                        select_username_tx.send(false).await.unwrap();
-                    }
-                    LoginResponse::UserAlreadyLoggedIn => {
-                        println!("User is already logged in");
+                    err => {
+                        println!("{}", err.err_msg());
                         select_username_tx.send(false).await.unwrap();
                     }
                 }
