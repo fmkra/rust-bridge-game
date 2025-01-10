@@ -253,59 +253,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     position: data.position,
                 });
 
+                let game_state = room.read().await.game.state.clone();
+
+                if game_state != GameState::WaitingForPlayers {
+                    // Player joined to a game that is already running    
+                    room.read().await.send_notifications(&s).await;
+                    return;
+                }
+
                 if let Some(player_position) = player_position_all_taken {
+                    // Game starts now
                     info!("Game started in room \"{}\"", room_id.as_str());
 
-                    let (game_started_notification, first_player, previous_game_state) = {
-                        let mut room_lock = room.write().await;
-                        let previous_game_state = room_lock.game.state.clone();
-                        if previous_game_state == GameState::WaitingForPlayers {
-                            room_lock.game.start();
-                        }
-                        let msg = GameStartedNotification {
+                    let mut room_lock = room.write().await;
+                    room_lock.game.start();
+
+                    let notifications = vec![
+                        notify(&s, &room_id, GameStartedNotification {
                             start_position: room_lock.game.current_player,
-                            player_position: player_position,
-                        };
-                        (msg, room_lock.game.current_player, previous_game_state)
-                    };
+                            player_position: player_position.clone(),
+                        }),
+                        notify(&s, &room_id, AskBidNotification {
+                            player: room_lock.game.current_player,
+                            max_bid: Bid::Pass,
+                        })
+                    ];
 
-                    let ask_bid_notification = AskBidNotification {
-                        player: first_player,
-                        max_bid: Bid::Pass,
-                    };
-
-                    if previous_game_state == GameState::WaitingForPlayers {
-                        // Game starts
-
-                        let notifications = vec![
-                            notify(&s, &room_id, game_started_notification),
-                            notify(&s, &room_id, ask_bid_notification)
-                        ];
-
-                        room.write().await.append_notifications(notifications);
-                    } else {
-                        room.read().await.send_notifications(&s).await;
-                        // Game is already running and is resumed now
-                        // TODO: maybe when 2 players leave, let first one in before 2nd joins
-                        // send(&s, &game_started_notification);
-
-                        // if previous_game_state == GameState::Auction {
-                        //     send(&s, &ask_bid_notification);
-                        // } else {
-                        //     let room_lock = room.read().await;
-
-                        //     send(&s, &AuctionFinishedNotification::Winner(AuctionFinishedNotificationInner {
-                        //         winner: room_lock.game.max_bidder,
-                        //         max_bid: room_lock.game.max_bid,
-                        //         game_value: room_lock.game.game_value,
-                        //     }));
-
-                        //     send(&s, &AskTrickNotification {
-                        //         player: room_lock.game.current_player,
-                        //         cards: room_lock.game.current_trick.clone(),
-                        //     });
-                        // }
-                    }
+                    room_lock.append_notifications(notifications);
                 }
             }
         );

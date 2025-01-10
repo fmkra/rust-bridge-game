@@ -459,8 +459,6 @@ pub fn play_ui(
                     // Unwrap is valid, as row must be between 1 and 7, and bid_types[col] are of valid types
                     let placed_bid = Bid::new(row + 1, bid_types[col]).unwrap();
                     place_bid(&socket, runtime, &mut client.placed_bid, placed_bid);
-
-                    println!("Placed bid: {:?}", placed_bid);
                 }
             }
         }
@@ -496,8 +494,6 @@ pub fn play_ui(
             {
                 let placed_bid = extra_bids[i];
                 place_bid(&socket, runtime, &mut client.placed_bid, placed_bid);
-
-                println!("Placed bid: {:?}", placed_bid);
             }
         }
     }
@@ -557,10 +553,8 @@ pub fn play_ui(
 
         // Handle the clicked card
         if let Some(card) = clicked_card {
-            println!("CLICKED: {:?}", card);
             let socket_clone = socket.clone();
             client.placed_trick = Some(card.clone());
-            println!("Settings placed trick to {:?}", client.placed_trick);
             runtime.spawn(async move {
                 socket_clone
                     .emit(
