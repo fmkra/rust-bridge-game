@@ -12,6 +12,8 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 
+use crate::gui_client::GuiClient;
+
 pub async fn preload_textures() -> HashMap<String, Texture2D> {
     let mut textures = HashMap::new();
     let suit_names = ["C", "D", "H", "S", "NT"];
@@ -64,13 +66,10 @@ pub async fn preload_cards() -> HashMap<String, Texture2D> {
 fn place_bid(
     socket: &Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    bid_arc: &Arc<Mutex<Option<Bid>>>,
+    bid: &mut Option<Bid>,
     placed_bid: Bid,
 ) {
-    {
-        let mut bid_val = bid_arc.blocking_lock();
-        *bid_val = Some(placed_bid);
-    }
+    *bid = Some(placed_bid);
     let socket_clone = socket.clone();
     runtime.spawn(async move {
         socket_clone
@@ -86,58 +85,14 @@ fn place_bid(
 pub fn play_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    player_seat_arc: Arc<Mutex<Option<Player>>>,
-    seats_arc: Arc<Mutex<[Option<User>; 4]>>,
-    cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
-    bid_arc: Arc<Mutex<Option<Bid>>>,
-    trick_arc: Arc<Mutex<Option<Card>>>,
-    current_player_arc: Arc<Mutex<Option<Player>>>,
-    dummy_cards_arc: Arc<Mutex<Option<Vec<Card>>>>,
-    dummy_player_arc: Arc<Mutex<Option<Player>>>,
-    current_placed_cards_arc: Arc<Mutex<[Option<Card>; 4]>>,
+    client: &mut GuiClient,
     bid_textures: &HashMap<String, Texture2D>,
     card_textures: &HashMap<String, Texture2D>,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
-    // Retrieve the player's seat
-    let player_position = {
-        let player_seat_lock = player_seat_arc.blocking_lock();
-        *player_seat_lock
-    };
-
-    if player_position.is_none() {
+    let Some(player_position) = client.selected_seat else {
         return;
-    }
-
-    let player_position = player_position.unwrap();
-
-    // Retrieve seats data
-    let seats = {
-        let seats_lock = seats_arc.blocking_lock();
-        seats_lock.clone()
-    };
-
-    // Retrieve current player
-    let current_player = {
-        let current_player_lock = current_player_arc.blocking_lock();
-        *current_player_lock
-    };
-
-    let dummy_player = {
-        let dummy_player_lock = dummy_player_arc.blocking_lock();
-        *dummy_player_lock
-    };
-
-    let dummy_cards = {
-        let dummy_cards_lock = dummy_cards_arc.blocking_lock();
-        dummy_cards_lock.clone()
-    };
-
-    // Retrieve player's cards
-    let player_cards = {
-        let cards_lock = cards_arc.blocking_lock();
-        cards_lock.clone()
     };
 
     // Dynamic rotation logic to keep the player's seat at the bottom
@@ -147,19 +102,19 @@ pub fn play_ui(
     let left_player = player_position.skip(1); // The player to the left
 
     // Determine usernames for each position
-    let bottom_username = seats[bottom_player.to_usize()]
+    let bottom_username = client.seats[bottom_player.to_usize()]
         .as_ref()
         .map(|user| user.get_username())
         .unwrap_or("Empty");
-    let right_username = seats[right_player.to_usize()]
+    let right_username = client.seats[right_player.to_usize()]
         .as_ref()
         .map(|user| user.get_username())
         .unwrap_or("Empty");
-    let top_username = seats[top_player.to_usize()]
+    let top_username = client.seats[top_player.to_usize()]
         .as_ref()
         .map(|user| user.get_username())
         .unwrap_or("Empty");
-    let left_username = seats[left_player.to_usize()]
+    let left_username = client.seats[left_player.to_usize()]
         .as_ref()
         .map(|user| user.get_username())
         .unwrap_or("Empty");
@@ -190,7 +145,7 @@ pub fn play_ui(
 
     // Determine text color based on the current player
     let get_text_color = |player: Player| {
-        if Some(player) == current_player {
+        if Some(player) == client.game_current_player {
             BLUE
         } else {
             WHITE
@@ -270,7 +225,9 @@ pub fn play_ui(
     let grid_cell_size = 60.0;
     let grid_spacing = 10.0;
 
-    if let (Some(dummy_cards), Some(dummy_player)) = (dummy_cards, dummy_player) {
+    if let (Some(dummy_cards), Some(dummy_player)) =
+        (client.dummy_cards.clone(), client.dummy_player)
+    {
         if dummy_player != player_position {
             // Sort dummy cards by suit, then by rank
             let mut dummy_cards_sorted = dummy_cards.clone();
@@ -441,12 +398,6 @@ pub fn play_ui(
         .cloned()
         .collect();
 
-    // Retrieve the current trick cards
-    let current_trick = {
-        let trick_lock = current_placed_cards_arc.blocking_lock();
-        *trick_lock
-    };
-
     // Card dimensions
     let card_texture_width = grid_cell_size * 2.0;
     let card_texture_height = grid_cell_size * 2.0;
@@ -455,7 +406,7 @@ pub fn play_ui(
         let (placeholder_x, placeholder_y) = position;
 
         // If there's a card in the current trick for this position, display it
-        if let Some(card) = current_trick[i] {
+        if let Some(card) = client.current_placed_cards[i] {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
             if let Some(texture) = card_textures.get(&card_name) {
                 draw_texture_ex(
@@ -509,7 +460,7 @@ pub fn play_ui(
                 {
                     // Unwrap is valid, as row must be between 1 and 7, and bid_types[col] are of valid types
                     let placed_bid = Bid::new(row + 1, bid_types[col]).unwrap();
-                    place_bid(&socket, runtime, &bid_arc, placed_bid);
+                    place_bid(&socket, runtime, &mut client.placed_bid, placed_bid);
 
                     println!("Placed bid: {:?}", placed_bid);
                 }
@@ -546,7 +497,7 @@ pub fn play_ui(
                 && mouse_position().1 <= click_y + grid_cell_size
             {
                 let placed_bid = extra_bids[i];
-                place_bid(&socket, runtime, &bid_arc, placed_bid);
+                place_bid(&socket, runtime, &mut client.placed_bid, placed_bid);
 
                 println!("Placed bid: {:?}", placed_bid);
             }
@@ -554,7 +505,7 @@ pub fn play_ui(
     }
 
     // DISPLAY PLAYER CARDS --------------------------------------------------------------------------------------------------
-    if let Some(mut cards) = player_cards {
+    if let Some(mut cards) = client.card_list.clone() {
         // Sort cards by suit, then by rank
         cards.sort_by(|a, b| a.suit.cmp(&b.suit).then(b.rank.cmp(&a.rank)));
 
@@ -610,12 +561,12 @@ pub fn play_ui(
         if let Some(card) = clicked_card {
             println!("CLICKED: {:?}", card);
             let socket_clone = socket.clone();
-            let mut trick_val = trick_arc.blocking_lock();
-            *trick_val = Some(card);
+            client.placed_trick = Some(card.clone());
+            println!("Settings placed trick to {:?}", client.placed_trick);
             runtime.spawn(async move {
                 socket_clone
                     .emit(
-                        MakeBidMessage::MSG_TYPE,
+                        MakeTrickMessage::MSG_TYPE,
                         to_string(&MakeTrickMessage { card }).unwrap(),
                     )
                     .await

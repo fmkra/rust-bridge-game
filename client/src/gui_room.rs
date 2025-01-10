@@ -16,22 +16,10 @@ use common::{
 pub fn room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &tokio::runtime::Runtime,
-    room_name_arc: Arc<Mutex<Option<String>>>,
-    seats_arc: Arc<Mutex<[Option<User>; 4]>>,
+    room_name: Option<String>,
+    seats: [Option<User>; 4],
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
-
-    // Retrieve room name
-    let room_name = {
-        let room_name_lock = room_name_arc.blocking_lock();
-        room_name_lock.clone()
-    };
-
-    // Retrieve seats
-    let seats = {
-        let seats_lock = seats_arc.blocking_lock();
-        seats_lock.clone()
-    };
 
     root_ui().window(hash!(), vec2(10.0, 10.0), vec2(400.0, 400.0), |ui| {
         if let Some(room_name) = room_name {
