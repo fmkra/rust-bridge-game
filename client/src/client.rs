@@ -19,7 +19,7 @@ pub struct Client {
     pub seats: [Option<User>; 4],
     pub selected_seat: Option<Player>,
     pub card_list: Option<Vec<Card>>,
-    pub player_bids: [Option<Bid>; 4], // TODO: Display placed bids in the ui.
+    pub player_bids: [Option<Bid>; 4],
     pub placed_bid: Option<Bid>,
     pub placed_trick: Option<Card>,
     pub game_max_bid: Option<Bid>,

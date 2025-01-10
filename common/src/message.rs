@@ -133,6 +133,8 @@ pub mod server_response {
         Ok,
         UsernameAlreadyExists,
         UserAlreadyLoggedIn,
+        UsernameInvalidCharacters,
+        UsernameInvalidLength,
     }
 
     impl MessageTrait for LoginResponse {
@@ -144,6 +146,12 @@ pub mod server_response {
             match self {
                 LoginResponse::UsernameAlreadyExists => "Username already exists".into(),
                 LoginResponse::UserAlreadyLoggedIn => "User is already logged in".into(),
+                LoginResponse::UsernameInvalidCharacters => {
+                    "Username contains invalid characters".into()
+                }
+                LoginResponse::UsernameInvalidLength => {
+                    "Username must be between 3 and 20 characters long".into()
+                }
                 _ => "OK".into(),
             }
         }

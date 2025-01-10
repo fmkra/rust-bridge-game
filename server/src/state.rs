@@ -60,18 +60,14 @@ impl RoomState {
 
     pub async fn user_join_room(&mut self, user: User) {
         self.users.insert(user);
-
-        // TODO: handle error
     }
 
     pub fn user_leave_room(&mut self, user: &User) -> bool {
-        // TODO: remove from player_positions only if game hasn't started
         self._remove_player_from_positions(user);
         self.users.remove(user)
     }
 
     pub fn user_select_place(&mut self, user: &User, position: Option<Player>) -> bool {
-        // TODO: if game already started, don't allow (return false)
         if let Some(new_position) = position {
             let new_position_usize = new_position.to_usize();
             if self.player_positions[new_position_usize].is_none() {

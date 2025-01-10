@@ -66,7 +66,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             LoginMessage::MSG_TYPE,
             |s: SocketRef, Data::<LoginMessage>(data), state: State<ServerState>| async move {
-                // TODO: regex filter username string
+                // check username length between 3 and 20
+                if !(3..=20).contains(&data.user.get_username().len()) {
+                    send(&s, &LoginResponse::UsernameInvalidLength);
+                    return;
+                }
+
+                // check username characters
+                if !data.user.get_username().chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    send(&s, &LoginResponse::UsernameInvalidCharacters);
+                    return;
+                }
 
                 if s.extensions.get::<ClientData>().is_some() {
                     send(&s, &LoginResponse::UserAlreadyLoggedIn);
