@@ -434,8 +434,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     sleep(Duration::from_secs(2)).await;
 
-                    notifications.push(notify(&s, &room_id, DealFinishedNotification::from(deal_finished)));
+                    notifications.push(notify(&s, &room_id, DealFinishedNotification::from(deal_finished.clone())));
 
+                    room_lock.game.start();
+
+                    notifications.push(notify(&s, &room_id, AskBidNotification {
+                        player: deal_finished.next_deal_bidder,
+                        max_bid: Bid::Pass,
+                    }));
                 }
                 TrickStatus::Error(_) => ()
             }

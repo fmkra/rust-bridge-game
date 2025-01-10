@@ -523,6 +523,9 @@ pub mod server_notification {
     pub struct DealFinishedNotification {
         pub points: [usize; 4],
         pub game_wins: [usize; 4],
+        pub contract_succeeded: bool,
+        pub bidder: Player,
+        pub next_deal_bidder: Player,
     }
 
     impl MessageTrait for DealFinishedNotification {
@@ -534,6 +537,9 @@ pub mod server_notification {
             DealFinishedNotification {
                 points: deal_finished.points,
                 game_wins: deal_finished.game_wins,
+                contract_succeeded: deal_finished.contract_succeeded,
+                bidder: deal_finished.bidder,
+                next_deal_bidder: deal_finished.next_deal_bidder,
             }
         }
     }

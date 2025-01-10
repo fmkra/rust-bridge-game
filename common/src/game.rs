@@ -63,6 +63,9 @@ pub struct DealFinished {
     pub points: [usize; 4],
     pub game_wins: [usize; 4],
     pub is_game_finished: bool,
+    pub contract_succeeded: bool,
+    pub bidder: Player,
+    pub next_deal_bidder: Player,
 }
 
 impl DealFinished {
@@ -71,12 +74,18 @@ impl DealFinished {
         points: [usize; 4],
         game_wins: [usize; 4],
         is_game_finished: bool,
+        contract_succeeded: bool,
+        bidder: Player,
+        next_deal_bidder: Player,
     ) -> DealFinished {
         DealFinished {
             trick_state,
             points,
             game_wins,
             is_game_finished,
+            contract_succeeded,
+            bidder,
+            next_deal_bidder,
         }
     }
 }
@@ -132,13 +141,21 @@ impl Game {
             collected_cards: Default::default(),
             points: Default::default(),
             game_wins: Default::default(),
-            vulnerable: Default::default(), // Default as [false, false, false, false]
+            vulnerable: Default::default(),
             trick_no: 0,
             current_trick: Vec::new(),
         }
     }
 
     pub fn start(&mut self) {
+        self.max_bidder = self.first_bidder;
+        self.current_player = self.first_bidder;
+        self.trick_no = 0;
+        self.state = GameState::Auction;
+        self.game_value = GameValue::Regular;
+        self.max_bid = Bid::Pass;
+        self.first_bidder = self.first_bidder.next();
+
         let mut deck: Vec<Card> = (2..=14)
             .filter_map(Rank::from_u8)
             .flat_map(|rank| {
@@ -267,21 +284,16 @@ impl Game {
             if self.trick_no == 13 {
                 // This function sets the self.state as Finished if the game is finished
                 // e.g. any pair has won 2 deals, then the winner is the one who has more points.
-                self.distribute_points();
-
-                if self.state != GameState::Finished {
-                    self.trick_no = 0;
-                    self.state = GameState::Auction;
-                    self.game_value = GameValue::Regular;
-                    self.first_bidder = self.first_bidder.next();
-                    self.current_player = self.first_bidder;
-                }
+                let contract_succeeded = self.distribute_points();
 
                 return TrickStatus::DealFinished(DealFinished::new(
                     trick_state,
                     self.points,
                     self.game_wins,
                     self.state == GameState::Finished,
+                    contract_succeeded,
+                    self.max_bidder,
+                    self.first_bidder.next(),
                 ));
             }
 
@@ -291,7 +303,7 @@ impl Game {
         TrickStatus::TrickInProgress
     }
 
-    pub fn distribute_points(&mut self) {
+    pub fn distribute_points(&mut self) -> bool {
         let bidder_usize = self.max_bidder.to_usize();
         let partner_usize = self.max_bidder.get_partner().to_usize();
 
@@ -302,7 +314,7 @@ impl Game {
         // Destructure self.max_bid, as it's guaranteed to be Bid::Play
         let Bid::Play(tricks_declared_value, bid_type) = self.max_bid else {
             eprintln!("self.max_bid should always be Bid::Play when distributing points");
-            return;
+            return false;
         };
         let tricks_declared = tricks_declared_value as usize + 6;
 
@@ -427,6 +439,7 @@ impl Game {
         }
         // Make sure the partner has the same amounts of points as bidder, as the game is played in pairs.
         self.points[partner_usize] = self.points[bidder_usize];
+        contract_succeeded
     }
 
     pub fn evaluate(&self) -> Option<GameResult> {
