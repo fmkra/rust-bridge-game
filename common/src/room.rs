@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct RoomId(Arc<str>);
 
 impl RoomId {
-    pub fn new(id: &str) -> Self {
-        Self(id.into())
+    pub fn new(id: Arc<str>) -> Self {
+        Self(id)
     }
 
     pub fn as_str(&self) -> &str {

@@ -50,7 +50,7 @@ pub fn list_rooms(
             ui.group(hash!(room), vec2(400.0, 50.0), |ui| {
                 ui.label(None, &format!("Room ID: {}", room));
                 if ui.button(None, "Join") {
-                    let room_id = RoomId::new(room);
+                    let room_id = RoomId::new(room.clone().into());
                     client.selected_room_name = room.clone();
                     let socket_clone = socket.clone();
                     runtime.spawn(async move {

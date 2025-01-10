@@ -27,7 +27,7 @@ pub fn create_room_ui(
         if ui.button(None, "Confirm") || is_key_pressed(KeyCode::Enter) {
             let msg = RegisterRoomMessage {
                 room_info: RoomInfo {
-                    id: RoomId::new(&client.selected_room_name),
+                    id: RoomId::new(client.selected_room_name.clone().into()),
                     visibility: Visibility::Public,
                 },
             };

@@ -31,7 +31,7 @@ use common::{
         MessageTrait,
     },
     room::RoomId,
-    Bid, Card,
+    Card,
 };
 use futures_util::FutureExt;
 use macroquad::prelude::*;
@@ -85,11 +85,7 @@ async fn main() {
             |client, notifier, msg, s| {
                 match msg {
                     LoginResponse::Ok => {
-                        println!("Login successful!");
-                        {
-                            let mut client_lock = client.lock().await;
-                            client_lock.state = GuiClientState::InLobby;
-                        }
+                        client.lock().await.state = GuiClientState::InLobby;
 
                         s.emit(
                             ListRoomsMessage::MSG_TYPE,
@@ -119,8 +115,8 @@ async fn main() {
                     .iter()
                     .map(|room| room.as_str().to_string())
                     .collect();
-                let mut client_lock = client.lock().await;
-                client_lock.rooms = rooms;
+
+                client.lock().await.rooms = rooms;
             }
         );
 
@@ -130,13 +126,10 @@ async fn main() {
             client,
             notifier,
             |client, _notifier, _msg, s| {
-                let room_id = client.lock().await.selected_room_name.clone();
+                let room_id = RoomId::new(client.lock().await.selected_room_name.clone().into());
                 s.emit(
                     JoinRoomMessage::MSG_TYPE,
-                    to_string(&JoinRoomMessage {
-                        room_id: RoomId::new(&room_id),
-                    })
-                    .unwrap(),
+                    to_string(&JoinRoomMessage { room_id }).unwrap(),
                 )
                 .await
                 .unwrap();
@@ -151,10 +144,8 @@ async fn main() {
             |client, notifier, msg, s| {
                 match msg {
                     JoinRoomResponse::Ok => {
-                        {
-                            let mut client_lock = client.lock().await;
-                            client_lock.state = GuiClientState::InRoom;
-                        }
+                        client.lock().await.state = GuiClientState::InRoom;
+
                         s.emit(
                             ListPlacesMessage::MSG_TYPE,
                             to_string(&ListPlacesMessage {}).unwrap(),
@@ -229,20 +220,12 @@ async fn main() {
             SelectPlaceNotification,
             client,
             notifier,
-            |client, notifier, msg, _s| {
-                {
-                    let mut client_lock = client.lock().await;
-                    update_user_seat(&mut client_lock.seats, msg.user.clone(), msg.position);
-                }
-                let position_str = match msg.position {
-                    Some(val) => format!("{}", val),
-                    None => String::from("Spectator"),
-                };
-                notifier.create_info(String::from(&format!(
-                    "Player {} selected position: {}",
-                    msg.user.get_username(),
-                    position_str
-                )));
+            |client, _notifier, msg, _s| {
+                update_user_seat(
+                    &mut client.lock().await.seats,
+                    msg.user.clone(),
+                    msg.position,
+                );
             }
         );
 
@@ -286,8 +269,8 @@ async fn main() {
             client,
             notifier,
             |client, notifier, msg, _s| {
-                let mut client_lock = client.lock().await;
-                update_user_seat(&mut client_lock.seats, msg.user.clone(), None);
+                update_user_seat(&mut client.lock().await.seats, msg.user.clone(), None);
+
                 notifier.create_info(String::from(&format!(
                     "Player {} left the room.",
                     msg.user.get_username()
@@ -300,12 +283,9 @@ async fn main() {
             GameStartedNotification,
             client,
             notifier,
-            |client, notifier, _msg, s| {
-                {
-                    let mut client_lock = client.lock().await;
-                    client_lock.state = GuiClientState::Playing;
-                }
-                notifier.create_info(String::from("Game started"));
+            |client, _notifier, _msg, s| {
+                client.lock().await.state = GuiClientState::Playing;
+
                 s.emit(
                     GetCardsMessage::MSG_TYPE,
                     to_string(&GetCardsMessage {}).unwrap(),
@@ -342,33 +322,12 @@ async fn main() {
 
         add_handler!(
             builder,
-            MakeBidNotification,
-            client,
-            notifier,
-            |client, notifier, msg, _s| {
-                let mut client_lock = client.lock().await;
-                client_lock.player_bids[msg.player.to_usize()] = Some(msg.bid);
-            }
-        );
-
-        add_handler!(
-            builder,
             AskBidNotification,
             client,
             notifier,
-            |client, notifier, msg, _s| {
-                let bid_message = match msg.max_bid {
-                    Bid::Pass => String::from("There is no max bid"),
-                    _ => String::from(format!("Current max bid is {}", msg.max_bid)),
-                };
+            |client, _notifier, msg, _s| {
                 let mut client_lock = client.lock().await;
                 client_lock.game_current_player = Some(msg.player);
-
-                notifier.create_info(bid_message);
-                notifier.create_info(String::from(&format!(
-                    "Player {} is bidding right now.",
-                    msg.player
-                )));
             }
         );
 
@@ -404,6 +363,17 @@ async fn main() {
 
         add_handler!(
             builder,
+            MakeBidNotification,
+            client,
+            notifier,
+            |client, _notifier, msg, _s| {
+                let mut client_lock = client.lock().await;
+                client_lock.player_bids[msg.player.to_usize()] = Some(msg.bid);
+            }
+        );
+
+        add_handler!(
+            builder,
             AuctionFinishedNotification,
             client,
             notifier,
@@ -426,11 +396,9 @@ async fn main() {
             client,
             notifier,
             |client, _notifier, msg, _s| {
-                {
-                    let mut client_lock = client.lock().await;
-                    client_lock.dummy_cards = Some(msg.cards);
-                    client_lock.dummy_player = Some(msg.dummy);
-                }
+                let mut client_lock = client.lock().await;
+                client_lock.dummy_cards = Some(msg.cards);
+                client_lock.dummy_player = Some(msg.dummy);
             }
         );
 
@@ -440,9 +408,7 @@ async fn main() {
             client,
             notifier,
             |client, _notifier, msg, _s| {
-                let mut client_lock = client.lock().await;
-
-                client_lock.game_current_player = Some(msg.player);
+                client.lock().await.game_current_player = Some(msg.player);
             }
         );
 
@@ -514,24 +480,9 @@ async fn main() {
             client,
             notifier,
             |client, notifier, msg, _s| {
-                {
-                    let mut client_lock = client.lock().await;
+                client.lock().await.current_placed_cards = [None, None, None, None];
 
-                    client_lock.current_placed_cards = [None, None, None, None];
-
-                    // if let Some(dummy_cards) = client_lock.dummy_cards.as_mut() {
-                    //     if let Some(card) = msg.cards.last() {
-                    //         dummy_cards.retain(|c| c != card);
-                    //     }
-                    // }
-
-                    // if let Some(current_player) = client_lock.game_current_player {
-                    //     let placed_cards = client_lock.current_placed_cards.as_mut();
-                    //     if let Some(last_tricked) = msg.cards.last() {
-                    //         placed_cards[current_player.to_usize()] = Some(*last_tricked);
-                    //     }
-                    // }
-                }
+                // TODO: show taken by
                 notifier.create_info(String::from(format!(
                     "Trick {} taken by {:?}",
                     msg.cards
