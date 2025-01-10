@@ -1,18 +1,14 @@
-mod gui_client;
-mod gui_create_room;
-mod gui_lobby;
-mod gui_login;
-mod gui_play;
-mod gui_room;
+mod client;
+mod gui;
 mod notifications;
 mod utils;
 
-use gui_client::{GuiClient, GuiClientState};
-use gui_create_room::create_room_ui;
-use gui_lobby::list_rooms;
-use gui_login::login_ui;
-use gui_play::{play_ui, preload_cards, preload_textures};
-use gui_room::room_ui;
+use client::{Client, ClientState};
+use gui::create_room::create_room_ui;
+use gui::lobby::list_rooms;
+use gui::login::login_ui;
+use gui::play::{play_ui, preload_cards, preload_textures};
+use gui::room::room_ui;
 
 use common::{
     message::{
@@ -71,7 +67,7 @@ async fn main() {
     let card_textures = preload_cards().await;
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
 
-    let client = Arc::new(Mutex::new(GuiClient::new()));
+    let client = Arc::new(Mutex::new(Client::new()));
     let notifier = Notifier::new();
 
     let socket = runtime.block_on(async {
@@ -85,7 +81,7 @@ async fn main() {
             |client, notifier, msg, s| {
                 match msg {
                     LoginResponse::Ok => {
-                        client.lock().await.state = GuiClientState::InLobby;
+                        client.lock().await.state = ClientState::InLobby;
 
                         s.emit(
                             ListRoomsMessage::MSG_TYPE,
@@ -139,7 +135,7 @@ async fn main() {
             |client, notifier, msg, s| {
                 match msg {
                     JoinRoomResponse::Ok => {
-                        client.lock().await.state = GuiClientState::InRoom;
+                        client.lock().await.state = ClientState::InRoom;
 
                         s.emit(
                             ListPlacesMessage::MSG_TYPE,
@@ -224,7 +220,7 @@ async fn main() {
             |client, _notifier, _msg, s| {
                 {
                     let mut client_lock = client.lock().await;
-                    client_lock.state = GuiClientState::InLobby;
+                    client_lock.state = ClientState::InLobby;
                     client_lock.seats = [None, None, None, None];
                     client_lock.selected_seat = None;
                 }
@@ -258,7 +254,7 @@ async fn main() {
             client,
             notifier,
             |client, _notifier, _msg, s| {
-                client.lock().await.state = GuiClientState::Playing;
+                client.lock().await.state = ClientState::Playing;
 
                 s.emit(
                     GetCardsMessage::MSG_TYPE,
@@ -437,7 +433,7 @@ async fn main() {
                 sleep(Duration::from_secs(5)).await;
                 {
                     let mut client_lock = client.lock().await;
-                    client_lock.state = GuiClientState::InLobby;
+                    client_lock.state = ClientState::InLobby;
                     client_lock.selected_room_name = String::new();
                     client_lock.seats = [None, None, None, None];
                     client_lock.selected_seat = None;
@@ -470,19 +466,19 @@ async fn main() {
         let current_state = client_lock.state;
 
         match current_state {
-            GuiClientState::Logging => {
+            ClientState::Logging => {
                 login_ui(socket.clone(), &runtime, &mut client_lock.name);
             }
-            GuiClientState::InLobby => {
+            ClientState::InLobby => {
                 list_rooms(socket.clone(), &runtime, &mut client_lock);
             }
-            GuiClientState::CreatingRoom => {
+            ClientState::CreatingRoom => {
                 create_room_ui(socket.clone(), &runtime, &mut client_lock);
             }
-            GuiClientState::InRoom => {
+            ClientState::InRoom => {
                 room_ui(socket.clone(), &runtime, &mut client_lock);
             }
-            GuiClientState::Playing => {
+            ClientState::Playing => {
                 play_ui(
                     socket.clone(),
                     &runtime,

@@ -11,12 +11,12 @@ use common::{
     room::{RoomId, RoomInfo, Visibility},
 };
 
-use crate::gui_client::GuiClient;
+use crate::client::Client;
 
 pub fn create_room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    client: &mut GuiClient,
+    client: &mut Client,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 

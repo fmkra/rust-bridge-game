@@ -1,4 +1,4 @@
-use crate::gui_client::{GuiClient, GuiClientState};
+use crate::client::{Client, ClientState};
 
 use common::{
     message::{
@@ -16,7 +16,7 @@ use tokio::runtime::Runtime;
 pub fn list_rooms(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    client: &mut GuiClient,
+    client: &mut Client,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
@@ -38,7 +38,7 @@ pub fn list_rooms(
         }
 
         if ui.button(None, "Create a room") {
-            client.state = GuiClientState::CreatingRoom;
+            client.state = ClientState::CreatingRoom;
         }
 
         if ui.button(None, "Exit") {

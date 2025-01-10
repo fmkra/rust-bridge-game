@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use crate::gui_client::GuiClient;
+use crate::client::Client;
 
 pub async fn preload_textures() -> HashMap<String, Texture2D> {
     let mut textures = HashMap::new();
@@ -83,7 +83,7 @@ fn place_bid(
 pub fn play_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &Runtime,
-    client: &mut GuiClient,
+    client: &mut Client,
     bid_textures: &HashMap<String, Texture2D>,
     card_textures: &HashMap<String, Texture2D>,
 ) {

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use common::{user::User, Bid, Card, Player};
 
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub enum GuiClientState {
+pub enum ClientState {
     Logging,
     InLobby,
     CreatingRoom,
@@ -11,9 +11,9 @@ pub enum GuiClientState {
     Playing,
 }
 
-pub struct GuiClient {
+pub struct Client {
     pub name: String,
-    pub state: GuiClientState,
+    pub state: ClientState,
     pub rooms: Vec<String>,
     pub selected_room_name: String,
     pub seats: [Option<User>; 4],
@@ -30,11 +30,11 @@ pub struct GuiClient {
     pub current_placed_cards: [Option<Card>; 4],
 }
 
-impl GuiClient {
-    pub fn new() -> GuiClient {
-        GuiClient {
+impl Client {
+    pub fn new() -> Client {
+        Client {
             name: String::new(),
-            state: GuiClientState::Logging,
+            state: ClientState::Logging,
             rooms: Vec::new(),
             selected_room_name: String::new(),
             seats: [None, None, None, None],

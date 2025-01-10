@@ -4,7 +4,7 @@ use macroquad::ui::{hash, root_ui};
 use serde_json::to_string;
 use std::sync::Arc;
 
-use crate::gui_client::GuiClient;
+use crate::client::Client;
 
 use common::{
     message::client_message::{LeaveRoomMessage, SelectPlaceMessage},
@@ -14,7 +14,7 @@ use common::{
 pub fn room_ui(
     socket: Arc<rust_socketio::asynchronous::Client>,
     runtime: &tokio::runtime::Runtime,
-    client: &mut GuiClient,
+    client: &mut Client,
 ) {
     clear_background(Color::from_rgba(50, 115, 85, 255));
 
