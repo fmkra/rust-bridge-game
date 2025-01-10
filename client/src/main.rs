@@ -429,14 +429,14 @@ async fn main() {
             DealFinishedNotification,
             client,
             notifier,
-            |_client, notifier, msg, s| {
+            |client, notifier, msg, s| {
                 if msg.contract_succeeded {
                     notifier.create_info(format!("Contract won by {}", msg.bidder));
                 } else {
                     notifier.create_info(format!("Contract lost by {}", msg.bidder));
                 }
-                sleep(Duration::from_secs(5)).await;
-                notifier.create_info(format!("Points: {:?}", msg.points));
+                let mut client_lock = client.lock().await;
+                client_lock.points = msg.points;
                 s.emit(
                     GetCardsMessage::MSG_TYPE,
                     to_string(&GetCardsMessage {}).unwrap(),

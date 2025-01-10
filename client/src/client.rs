@@ -28,6 +28,7 @@ pub struct Client {
     pub dummy_cards: Option<Vec<Card>>,
     pub dummy_player: Option<Player>,
     pub current_placed_cards: [Option<Card>; 4],
+    pub points: [usize; 4],
 }
 
 impl Client {
@@ -49,6 +50,7 @@ impl Client {
             dummy_cards: None,
             dummy_player: None,
             current_placed_cards: [None, None, None, None],
+            points: [0, 0, 0, 0],
         }
     }
 }

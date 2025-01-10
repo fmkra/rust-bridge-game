@@ -164,7 +164,7 @@ pub fn play_ui(
         );
         let bid_text_size = 25.0;
         let bid_info_x = 200.0;
-        let bid_info_y = 50.0;
+        let bid_info_y = 100.0;
 
         // Draw player and username
         draw_text(&bid_info, bid_info_x, bid_info_y, bid_text_size, WHITE);
@@ -181,6 +181,55 @@ pub fn play_ui(
                     ..Default::default()
                 },
             );
+        }
+    }
+
+    // Draw points table
+    {
+        let table_x = 200.0;
+        let table_y = 0.0;
+        let col_width = 160.0;
+        let row_height = 30.0;
+        let table_width = col_width * 4.0;
+        let table_height = row_height * 2.0;
+
+        // Draw table background
+        draw_rectangle(table_x, table_y, table_width, table_height, DARKGRAY);
+
+        // Draw grid lines
+        for i in 0..=4 {
+            let x = table_x + i as f32 * col_width;
+            draw_line(x, table_y, x, table_y + table_height, 2.0, WHITE);
+        }
+        draw_line(
+            table_x,
+            table_y + row_height,
+            table_x + table_width,
+            table_y + row_height,
+            2.0,
+            WHITE,
+        );
+
+        // Helper to draw centered cell text
+        let draw_cell = |text: &str, col: usize, row: usize| {
+            let cell_x = table_x + col as f32 * col_width;
+            let cell_y = table_y + row as f32 * row_height;
+            let text_width = measure_text(text, None, 20, 1.0).width;
+            let text_x = cell_x + (col_width - text_width) / 2.0;
+            let text_y = cell_y + row_height * 0.7;
+            draw_text(text, text_x, text_y, 20.0, WHITE);
+        };
+
+        // Draw player names and positions
+        for i in 0..4 {
+            let player = Player::from_usize(i).unwrap();
+            let username = client.seats[i]
+                .as_ref()
+                .map(|user| user.get_username())
+                .unwrap_or(&"Empty");
+            let header = format!("{} ({})", username, player.to_str());
+            draw_cell(&header, i, 0);
+            draw_cell(&client.points[i].to_string(), i, 1);
         }
     }
 
