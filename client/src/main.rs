@@ -20,8 +20,8 @@ use common::{
         server_notification::{
             AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
             DummyCardsNotification, GameFinishedNotification, GameStartedNotification,
-            JoinRoomNotification, LeaveRoomNotification, SelectPlaceNotification,
-            TrickFinishedNotification,
+            JoinRoomNotification, LeaveRoomNotification, MakeBidNotification,
+            SelectPlaceNotification, TrickFinishedNotification,
         },
         server_response::{
             GetCardsResponse, JoinRoomResponse, LeaveRoomResponse, ListPlacesResponse,
@@ -337,6 +337,21 @@ async fn main() {
                         notifier.create_error(String::from("Spectator is not allowed to play"));
                     }
                 }
+            }
+        );
+
+        add_handler!(
+            builder,
+            MakeBidNotification,
+            client,
+            notifier,
+            |client, notifier, msg, _s| {
+                let mut client_lock = client.lock().await;
+                client_lock.player_bids[msg.player.to_usize()] = Some(msg.bid);
+                notifier.create_info(String::from(&format!(
+                    "Player {} bid {}",
+                    msg.player, msg.bid
+                )));
             }
         );
 

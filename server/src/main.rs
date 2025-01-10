@@ -5,9 +5,7 @@ use common::message::client_message::{
     MakeTrickMessage,
 };
 use common::message::server_notification::{
-    AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
-    AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification,
-    TrickFinishedNotification,
+    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, TrickFinishedNotification
 };
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse};
 use common::message::{
@@ -365,6 +363,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     send(&s, &MakeBidResponse::Ok);
 
                     let mut notifications = Vec::new();
+                    notifications.push(notify(&s, &room_lock.info.id, MakeBidNotification {
+                        player: player,
+                        bid: data.bid,
+                    }));
                     if next_state == BidStatus::Auction {
                         notifications.push(notify(&s, &room_lock.info.id, AskBidNotification {
                             player: room_lock.game.current_player,
@@ -448,15 +450,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             room_lock.append_notifications(notifications);
         });
-
-        // s.on(
-        //     "msg",
-        //     |s: SocketRef, Data::<Ping>(data), state: State<ServerState>| async move {
-        //         println!("data = {:?}", data);
-        //         println!("state = {:?}", state.lock().await);
-        //         println!("rooms = {:?}", s.rooms());
-        //     },
-        // );
 
         s.on_disconnect(
             move |s: SocketRef, state: State<ServerState>| async move {

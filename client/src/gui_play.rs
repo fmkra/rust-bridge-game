@@ -375,8 +375,8 @@ pub fn play_ui(
             if let Some(texture) = card_textures.get(&card_name) {
                 draw_texture_ex(
                     texture,
-                    square_x + 90.0 + 90.0 * (*placeholder_x),
-                    square_y + 180.0 + 180.0 * (*placeholder_y),
+                    square_x + 90.0 * (*placeholder_x + 1.0),
+                    square_y + 90.0 * (*placeholder_y + 1.0),
                     WHITE,
                     DrawTextureParams {
                         dest_size: Some(Vec2::new(card_texture_width, card_texture_height)),
