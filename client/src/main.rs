@@ -28,7 +28,7 @@ use common::{
             ListRoomsResponse, LoginResponse, MakeBidResponse, MakeTrickResponse,
             RegisterRoomResponse, SelectPlaceResponse,
         },
-        MessageTrait,
+        GetErrorMessage, MessageTrait,
     },
     room::RoomId,
     Card,
@@ -94,12 +94,7 @@ async fn main() {
                         .await
                         .unwrap();
                     }
-                    LoginResponse::UsernameAlreadyExists => {
-                        notifier.create_error(String::from("Username already exists"));
-                    }
-                    LoginResponse::UserAlreadyLoggedIn => {
-                        notifier.create_error(String::from("User is already logged in"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -153,15 +148,7 @@ async fn main() {
                         .await
                         .unwrap();
                     }
-                    JoinRoomResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
-                    JoinRoomResponse::AlreadyInRoom => {
-                        notifier.create_error(String::from("You are already in the room"));
-                    }
-                    JoinRoomResponse::RoomNotFound => {
-                        notifier.create_error(String::from("Room not found"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -177,12 +164,7 @@ async fn main() {
                         let mut client_lock = client.lock().await;
                         client_lock.seats = msg;
                     }
-                    ListPlacesResponse::NotInRoom => {
-                        notifier.create_error(String::from("You are not in a room"));
-                    }
-                    ListPlacesResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -202,15 +184,7 @@ async fn main() {
                         .await
                         .unwrap();
                     }
-                    SelectPlaceResponse::NotInRoom => {
-                        notifier.create_error(String::from("You are not in a room"));
-                    }
-                    SelectPlaceResponse::PlaceAlreadyTaken => {
-                        notifier.create_error(String::from("Place is already taken"));
-                    }
-                    SelectPlaceResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -307,15 +281,7 @@ async fn main() {
                         client_lock.card_list = Some(cards);
                         client_lock.selected_seat = Some(position);
                     }
-                    GetCardsResponse::NotInRoom => {
-                        notifier.create_error(String::from("You are not in a room"));
-                    }
-                    GetCardsResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
-                    GetCardsResponse::SpectatorNotAllowed => {
-                        notifier.create_error(String::from("Spectator is not allowed to play"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -339,24 +305,7 @@ async fn main() {
             |_client, notifier, msg, _s| {
                 match msg {
                     MakeBidResponse::Ok => {}
-                    MakeBidResponse::AuctionNotInProcess => {
-                        notifier.create_error(String::from("Auction is not in process"));
-                    }
-                    MakeBidResponse::NotInRoom => {
-                        notifier.create_error(String::from("You are not in a room"));
-                    }
-                    MakeBidResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
-                    MakeBidResponse::SpectatorNotAllowed => {
-                        notifier.create_error(String::from("You are not allowed to play"));
-                    }
-                    MakeBidResponse::NotYourTurn => {
-                        notifier.create_error(String::from("It's not your turn"));
-                    }
-                    MakeBidResponse::InvalidBid => {
-                        notifier.create_error(String::from("This bid is not valid"))
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );
@@ -429,24 +378,7 @@ async fn main() {
                             }
                         }
                     }
-                    MakeTrickResponse::NotInRoom => {
-                        notifier.create_error(String::from("You are not in a room"));
-                    }
-                    MakeTrickResponse::SpectatorNotAllowed => {
-                        notifier.create_error(String::from("You are not allowed to play"));
-                    }
-                    MakeTrickResponse::NotYourTurn => {
-                        notifier.create_error(String::from("It's not your turn"));
-                    }
-                    MakeTrickResponse::TrickNotInProcess => {
-                        notifier.create_error(String::from("Trick is not in process"));
-                    }
-                    MakeTrickResponse::InvalidCard => {
-                        notifier.create_error(String::from("This card is not valid"));
-                    }
-                    MakeTrickResponse::Unauthenticated => {
-                        notifier.create_error(String::from("You are not authenticated"));
-                    }
+                    err => notifier.create_error(err.err_msg()),
                 }
             }
         );

@@ -9,6 +9,10 @@ pub trait MessageTrait {
     const MSG_TYPE: &'static str;
 }
 
+pub trait GetErrorMessage {
+    fn err_msg(&self) -> String;
+}
+
 /// Messages sent from client to server
 pub mod client_message {
     use super::*;
@@ -20,6 +24,7 @@ pub mod client_message {
     pub struct LoginMessage {
         pub user: User,
     }
+
     impl MessageTrait for LoginMessage {
         const MSG_TYPE: &'static str = "login";
     }
@@ -28,6 +33,7 @@ pub mod client_message {
     /// Server answers with ListRoomsResponse message
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct ListRoomsMessage {}
+
     impl MessageTrait for ListRoomsMessage {
         const MSG_TYPE: &'static str = "list_rooms";
     }
@@ -38,6 +44,7 @@ pub mod client_message {
     pub struct RegisterRoomMessage {
         pub room_info: RoomInfo,
     }
+
     impl MessageTrait for RegisterRoomMessage {
         const MSG_TYPE: &'static str = "register_room";
     }
@@ -49,6 +56,7 @@ pub mod client_message {
     pub struct JoinRoomMessage {
         pub room_id: RoomId,
     }
+
     impl MessageTrait for JoinRoomMessage {
         const MSG_TYPE: &'static str = "join_room";
     }
@@ -58,6 +66,7 @@ pub mod client_message {
     /// Server sends LeaveRoomNotification to all users in the room
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct LeaveRoomMessage {}
+
     impl MessageTrait for LeaveRoomMessage {
         const MSG_TYPE: &'static str = "leave_room";
     }
@@ -66,6 +75,7 @@ pub mod client_message {
     /// Server answers with ListPlacesResponse message
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct ListPlacesMessage {}
+
     impl MessageTrait for ListPlacesMessage {
         const MSG_TYPE: &'static str = "list_places";
     }
@@ -76,6 +86,7 @@ pub mod client_message {
     pub struct SelectPlaceMessage {
         pub position: Option<Player>,
     }
+
     impl MessageTrait for SelectPlaceMessage {
         const MSG_TYPE: &'static str = "select_place";
     }
@@ -84,6 +95,7 @@ pub mod client_message {
     /// Server answers with GetCardsResponse message
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct GetCardsMessage {}
+
     impl MessageTrait for GetCardsMessage {
         const MSG_TYPE: &'static str = "get_cards";
     }
@@ -94,6 +106,7 @@ pub mod client_message {
     pub struct MakeBidMessage {
         pub bid: Bid,
     }
+
     impl MessageTrait for MakeBidMessage {
         const MSG_TYPE: &'static str = "make_bid";
     }
@@ -104,6 +117,7 @@ pub mod client_message {
     pub struct MakeTrickMessage {
         pub card: Card,
     }
+
     impl MessageTrait for MakeTrickMessage {
         const MSG_TYPE: &'static str = "make_trick";
     }
@@ -120,8 +134,19 @@ pub mod server_response {
         UsernameAlreadyExists,
         UserAlreadyLoggedIn,
     }
+
     impl MessageTrait for LoginResponse {
         const MSG_TYPE: &'static str = "login_response";
+    }
+
+    impl GetErrorMessage for LoginResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                LoginResponse::UsernameAlreadyExists => "Username already exists".into(),
+                LoginResponse::UserAlreadyLoggedIn => "User is already logged in".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for ListRoomsMessage
@@ -130,6 +155,7 @@ pub mod server_response {
     pub struct ListRoomsResponse {
         pub rooms: Vec<RoomId>,
     }
+
     impl MessageTrait for ListRoomsResponse {
         const MSG_TYPE: &'static str = "list_rooms_response";
     }
@@ -141,6 +167,7 @@ pub mod server_response {
         RoomIdAlreadyExists,
         Unauthenticated,
     }
+
     impl MessageTrait for RegisterRoomResponse {
         const MSG_TYPE: &'static str = "register_room_response";
     }
@@ -153,8 +180,20 @@ pub mod server_response {
         RoomNotFound,
         Unauthenticated,
     }
+
     impl MessageTrait for JoinRoomResponse {
         const MSG_TYPE: &'static str = "join_room_response";
+    }
+
+    impl GetErrorMessage for JoinRoomResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                JoinRoomResponse::Unauthenticated => "You are not authenticated".into(),
+                JoinRoomResponse::AlreadyInRoom => "You are already in the room".into(),
+                JoinRoomResponse::RoomNotFound => "Room not found".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for LeaveRoomMessage
@@ -164,6 +203,7 @@ pub mod server_response {
         NotInRoom,
         Unauthenticated,
     }
+
     impl MessageTrait for LeaveRoomResponse {
         const MSG_TYPE: &'static str = "leave_room_response";
     }
@@ -176,8 +216,19 @@ pub mod server_response {
         NotInRoom,
         Unauthenticated,
     }
+
     impl MessageTrait for ListPlacesResponse {
         const MSG_TYPE: &'static str = "list_places_response";
+    }
+
+    impl GetErrorMessage for ListPlacesResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                ListPlacesResponse::Unauthenticated => "You are not authenticated".into(),
+                ListPlacesResponse::NotInRoom => "You are not in a room".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for SelectPlaceMessage
@@ -188,8 +239,20 @@ pub mod server_response {
         PlaceAlreadyTaken,
         Unauthenticated,
     }
+
     impl MessageTrait for SelectPlaceResponse {
         const MSG_TYPE: &'static str = "select_place_response";
+    }
+
+    impl GetErrorMessage for SelectPlaceResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                SelectPlaceResponse::Unauthenticated => "You are not authenticated".into(),
+                SelectPlaceResponse::NotInRoom => "You are not in a room".into(),
+                SelectPlaceResponse::PlaceAlreadyTaken => "Place is already taken".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for GetCards
@@ -201,8 +264,20 @@ pub mod server_response {
         NotInRoom,
         Unauthenticated,
     }
+
     impl MessageTrait for GetCardsResponse {
         const MSG_TYPE: &'static str = "get_cards_response";
+    }
+
+    impl GetErrorMessage for GetCardsResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                GetCardsResponse::Unauthenticated => "You are not authenticated".into(),
+                GetCardsResponse::NotInRoom => "You are not in a room".into(),
+                GetCardsResponse::SpectatorNotAllowed => "Spectator is not allowed to play".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for TrickMessage
@@ -216,8 +291,23 @@ pub mod server_response {
         InvalidBid,
         Unauthenticated,
     }
+
     impl MessageTrait for MakeBidResponse {
         const MSG_TYPE: &'static str = "make_bid_response";
+    }
+
+    impl GetErrorMessage for MakeBidResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                MakeBidResponse::Unauthenticated => "You are not authenticated".into(),
+                MakeBidResponse::NotInRoom => "You are not in a room".into(),
+                MakeBidResponse::SpectatorNotAllowed => "Spectator is not allowed to play".into(),
+                MakeBidResponse::NotYourTurn => "It's not your turn".into(),
+                MakeBidResponse::AuctionNotInProcess => "Auction is not in process".into(),
+                MakeBidResponse::InvalidBid => "This bid is not valid".into(),
+                _ => "OK".into(),
+            }
+        }
     }
 
     /// Answer from server for TrickMessage
@@ -231,6 +321,7 @@ pub mod server_response {
         InvalidCard,
         Unauthenticated,
     }
+
     impl MessageTrait for MakeTrickResponse {
         const MSG_TYPE: &'static str = "make_trick_response";
     }
@@ -250,18 +341,32 @@ pub mod server_response {
             }
         }
     }
+
+    impl GetErrorMessage for MakeTrickResponse {
+        fn err_msg(&self) -> String {
+            match self {
+                MakeTrickResponse::Unauthenticated => "You are not authenticated".into(),
+                MakeTrickResponse::NotInRoom => "You are not in a room".into(),
+                MakeTrickResponse::SpectatorNotAllowed => "Spectator is not allowed to play".into(),
+                MakeTrickResponse::NotYourTurn => "It's not your turn".into(),
+                MakeTrickResponse::TrickNotInProcess => "Trick is not in process".into(),
+                MakeTrickResponse::InvalidCard => "This card is not valid".into(),
+                _ => "OK".into(),
+            }
+        }
+    }
 }
 
 pub mod server_notification {
-    use crate::{Bid, Card, GameResult, GameValue, Player, TrickState};
-
     use super::*;
+    use crate::{Bid, Card, GameResult, GameValue, Player, TrickState};
 
     /// Notification sent by server to all users in the room when a new user joins
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct JoinRoomNotification {
         pub user: User,
     }
+
     impl MessageTrait for JoinRoomNotification {
         const MSG_TYPE: &'static str = "join_room_notification";
     }
@@ -271,6 +376,7 @@ pub mod server_notification {
     pub struct LeaveRoomNotification {
         pub user: User,
     }
+
     impl MessageTrait for LeaveRoomNotification {
         const MSG_TYPE: &'static str = "leave_room_notification";
     }
@@ -280,6 +386,7 @@ pub mod server_notification {
         pub user: User,
         pub position: Option<Player>,
     }
+
     impl MessageTrait for SelectPlaceNotification {
         const MSG_TYPE: &'static str = "select_place_notification";
     }
@@ -289,6 +396,7 @@ pub mod server_notification {
         pub start_position: Player,
         pub player_position: [User; 4],
     }
+
     impl MessageTrait for GameStartedNotification {
         const MSG_TYPE: &'static str = "game_started_notification";
     }
@@ -298,6 +406,7 @@ pub mod server_notification {
         pub player: Player,
         pub bid: Bid,
     }
+
     impl MessageTrait for MakeBidNotification {
         const MSG_TYPE: &'static str = "make_bid_notification";
     }
@@ -307,6 +416,7 @@ pub mod server_notification {
         pub player: Player,
         pub max_bid: Bid,
     }
+
     impl MessageTrait for AskBidNotification {
         const MSG_TYPE: &'static str = "ask_bid_notification";
     }
@@ -323,15 +433,18 @@ pub mod server_notification {
         NoWinner,
         Winner(AuctionFinishedNotificationInner),
     }
+
     impl MessageTrait for AuctionFinishedNotification {
         const MSG_TYPE: &'static str = "auction_finished_notification";
     }
 
+    /// Notification sent by server to all users in the room when a player is asked to make a trick
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct AskTrickNotification {
         pub player: Player,
         pub cards: Vec<Card>,
     }
+
     impl MessageTrait for AskTrickNotification {
         const MSG_TYPE: &'static str = "ask_trick_notification";
     }
@@ -341,6 +454,7 @@ pub mod server_notification {
         pub player: Player,
         pub card: Card,
     }
+
     impl MessageTrait for MakeTrickNotification {
         const MSG_TYPE: &'static str = "make_trick_notification";
     }
@@ -350,6 +464,7 @@ pub mod server_notification {
         pub taker: Player,
         pub cards: Vec<Card>,
     }
+
     impl MessageTrait for TrickFinishedNotification {
         const MSG_TYPE: &'static str = "trick_finished_notification";
     }
@@ -367,6 +482,7 @@ pub mod server_notification {
     pub struct GameFinishedNotification {
         pub result: Option<GameResult>,
     }
+
     impl MessageTrait for GameFinishedNotification {
         const MSG_TYPE: &'static str = "game_finished_notification";
     }
@@ -384,6 +500,7 @@ pub mod server_notification {
         pub cards: Vec<Card>,
         pub dummy: Player,
     }
+
     impl MessageTrait for DummyCardsNotification {
         const MSG_TYPE: &'static str = "dummy_cards_notification";
     }
