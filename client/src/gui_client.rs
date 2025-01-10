@@ -1,11 +1,9 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use common::{user::User, Bid, Card, Player};
-
-use crate::gui_notification::Notification;
 
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum GuiClientState {
@@ -19,7 +17,6 @@ pub enum GuiClientState {
 pub struct GuiClient {
     pub name: Arc<Mutex<Option<String>>>,
     pub state: Arc<Mutex<GuiClientState>>,
-    pub notifications: Arc<Mutex<VecDeque<Notification>>>,
     pub rooms: Arc<Mutex<Vec<String>>>,
     pub selected_room_name: Arc<Mutex<Option<String>>>,
     pub seats: Arc<Mutex<[Option<User>; 4]>>,
@@ -40,7 +37,6 @@ impl GuiClient {
         GuiClient {
             name: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(GuiClientState::Logging)),
-            notifications: Arc::new(Mutex::new(VecDeque::new())),
             rooms: Arc::new(Mutex::new(Vec::new())),
             selected_room_name: Arc::new(Mutex::new(None)),
             seats: Arc::new(Mutex::new([None, None, None, None])),

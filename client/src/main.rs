@@ -2,19 +2,15 @@ mod gui_client;
 mod gui_create_room;
 mod gui_lobby;
 mod gui_login;
-mod gui_notification;
 mod gui_play;
 mod gui_room;
+mod notifications;
 mod utils;
 
 use gui_client::{GuiClient, GuiClientState};
 use gui_create_room::create_room_ui;
 use gui_lobby::list_rooms;
 use gui_login::login_ui;
-use gui_notification::{
-    create_error_notification, create_info_notification, display_notifications, Notification,
-    NotificationType,
-};
 use gui_play::{play_ui, preload_cards, preload_textures};
 use gui_room::room_ui;
 
@@ -39,6 +35,7 @@ use common::{
 };
 use futures_util::FutureExt;
 use macroquad::prelude::*;
+use notifications::Notifier;
 use rust_socketio::{asynchronous::ClientBuilder, Payload};
 use serde_json::to_string;
 use std::sync::Arc;
@@ -72,20 +69,21 @@ async fn main() {
     // let input_selected_bid =
 
     // Clones of GuiClient Arc fields
-    let client_notifications_clone = client.notifications.clone();
-    let client_notifications_clone_1 = client.notifications.clone();
-    let client_notifications_clone_2 = client.notifications.clone();
-    let client_notifications_clone_3 = client.notifications.clone();
-    let client_notifications_clone_4 = client.notifications.clone();
-    let client_notifications_clone_5 = client.notifications.clone();
-    let client_notifications_clone_6 = client.notifications.clone();
-    let client_notifications_clone_7 = client.notifications.clone();
-    let client_notifications_clone_8 = client.notifications.clone();
-    let client_notifications_clone_9 = client.notifications.clone();
-    let client_notifications_clone_10 = client.notifications.clone();
-    let client_notifications_clone_11 = client.notifications.clone();
-    let client_notifications_clone_12 = client.notifications.clone();
-    let client_notifications_clone_13 = client.notifications.clone();
+    let notifier = Notifier::new();
+    let notifier_clone_0 = notifier.clone();
+    let notifier_clone_1 = notifier.clone();
+    let notifier_clone_2 = notifier.clone();
+    let notifier_clone_3 = notifier.clone();
+    let notifier_clone_4 = notifier.clone();
+    let notifier_clone_5 = notifier.clone();
+    let notifier_clone_6 = notifier.clone();
+    let notifier_clone_7 = notifier.clone();
+    let notifier_clone_8 = notifier.clone();
+    let notifier_clone_9 = notifier.clone();
+    let notifier_clone_10 = notifier.clone();
+    let notifier_clone_11 = notifier.clone();
+    let notifier_clone_12 = notifier.clone();
+    let notifier_clone_13 = notifier.clone();
     let client_name_clone = client.name.clone();
     let client_state_clone = client.state.clone();
     let client_state_clone_1 = client.state.clone();
@@ -136,7 +134,7 @@ async fn main() {
             ClientBuilder::new("http://localhost:3000/")
                 .namespace("/")
                 .on(LoginResponse::MSG_TYPE, move |payload, c| {
-                    let notifications = client_notifications_clone.clone();
+                    let notifier = notifier_clone_0.clone();
                     let name = client_name_clone.clone();
                     let state = client_state_clone.clone();
                     let nickname = input_nickname_clone.clone();
@@ -172,16 +170,10 @@ async fn main() {
                                 .unwrap();
                             }
                             LoginResponse::UsernameAlreadyExists => {
-                                create_error_notification(
-                                    String::from("Username already exists"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("Username already exists"));
                             }
                             LoginResponse::UserAlreadyLoggedIn => {
-                                create_error_notification(
-                                    String::from("User is already logged in"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("User is already logged in"));
                             }
                         }
                     }
@@ -232,7 +224,7 @@ async fn main() {
                     .boxed()
                 })
                 .on(JoinRoomResponse::MSG_TYPE, move |payload, c| {
-                    let notifications = client_notifications_clone_2.clone();
+                    let notifier = notifier_clone_2.clone();
                     let state_arc = client_state_clone_2.clone();
                     let client_selected_room_name_arc = client_selected_room_name_clone.clone();
                     let input_selected_room_name_arc = input_selected_room_name_clone_1.clone();
@@ -265,29 +257,20 @@ async fn main() {
                                 .unwrap();
                             }
                             JoinRoomResponse::Unauthenticated => {
-                                create_error_notification(
-                                    String::from("You are not authenticated"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not authenticated"));
                             }
                             JoinRoomResponse::AlreadyInRoom => {
-                                create_error_notification(
-                                    String::from("You are already in the room"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are already in the room"));
                             }
                             JoinRoomResponse::RoomNotFound => {
-                                create_error_notification(
-                                    String::from("Room not found"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("Room not found"));
                             }
                         }
                     }
                     .boxed()
                 })
                 .on(ListPlacesResponse::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_1.clone();
+                    let notifier = notifier_clone_1.clone();
                     let seats_arc = client_seats_clone.clone();
                     async move {
                         let msg = match payload {
@@ -303,23 +286,17 @@ async fn main() {
                                 *seats_val = msg;
                             }
                             ListPlacesResponse::NotInRoom => {
-                                create_error_notification(
-                                    String::from("You are not in a room"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not in a room"));
                             }
                             ListPlacesResponse::Unauthenticated => {
-                                create_error_notification(
-                                    String::from("You are not authenticated"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not authenticated"));
                             }
                         }
                     }
                     .boxed()
                 })
                 .on(SelectPlaceResponse::MSG_TYPE, move |payload, c| {
-                    let notifications = client_notifications_clone_3.clone();
+                    let notifier = notifier_clone_3.clone();
                     let client_selected_seat_arc = client_selected_seat_clone.clone();
                     let input_selected_seat_arc = input_selected_seat_clone.clone();
                     async move {
@@ -346,22 +323,17 @@ async fn main() {
                                         .unwrap();
                                     }
                                     SelectPlaceResponse::NotInRoom => {
-                                        create_error_notification(
-                                            String::from("You are not in a room"),
-                                            notifications,
-                                        );
+                                        notifier
+                                            .create_error(String::from("You are not in a room"));
                                     }
                                     SelectPlaceResponse::PlaceAlreadyTaken => {
-                                        create_error_notification(
-                                            String::from("Place is already taken"),
-                                            notifications,
-                                        );
+                                        notifier
+                                            .create_error(String::from("Place is already taken"));
                                     }
                                     SelectPlaceResponse::Unauthenticated => {
-                                        create_error_notification(
-                                            String::from("You are not authenticated"),
-                                            notifications,
-                                        );
+                                        notifier.create_error(String::from(
+                                            "You are not authenticated",
+                                        ));
                                     }
                                 };
                             }
@@ -371,7 +343,7 @@ async fn main() {
                     .boxed()
                 })
                 .on(SelectPlaceNotification::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_4.clone();
+                    let notifier = notifier_clone_4.clone();
                     let client_seats = client_seats_clone_1.clone();
                     async move {
                         let player_position = match payload {
@@ -393,19 +365,16 @@ async fn main() {
                             Some(val) => format!("{}", val),
                             None => String::from("Spectator"),
                         };
-                        create_info_notification(
-                            String::from(&format!(
-                                "Player {} selected position: {}",
-                                player_position.user.get_username(),
-                                position_str
-                            )),
-                            notifications,
-                        );
+                        notifier.create_info(String::from(&format!(
+                            "Player {} selected position: {}",
+                            player_position.user.get_username(),
+                            position_str
+                        )));
                     }
                     .boxed()
                 })
                 .on(JoinRoomNotification::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_5.clone();
+                    let notifier = notifier_clone_5.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -414,13 +383,10 @@ async fn main() {
                             }
                             _ => return,
                         };
-                        create_info_notification(
-                            String::from(&format!(
-                                "Player {} joined the room.",
-                                msg.user.get_username()
-                            )),
-                            notifications,
-                        );
+                        notifier.create_info(String::from(&format!(
+                            "Player {} joined the room.",
+                            msg.user.get_username()
+                        )));
                     }
                     .boxed()
                 })
@@ -458,7 +424,7 @@ async fn main() {
                     .boxed()
                 })
                 .on(LeaveRoomNotification::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_6.clone();
+                    let notifier = notifier_clone_6.clone();
                     let client_seats = client_seats_clone_3.clone();
                     async move {
                         let msg = match payload {
@@ -470,18 +436,15 @@ async fn main() {
                         };
                         let mut client_seats_val = client_seats.lock().await;
                         update_user_seat(&mut client_seats_val, msg.user.clone(), None);
-                        create_info_notification(
-                            String::from(&format!(
-                                "Player {} left the room.",
-                                msg.user.get_username()
-                            )),
-                            notifications,
-                        );
+                        notifier.create_info(String::from(&format!(
+                            "Player {} left the room.",
+                            msg.user.get_username()
+                        )));
                     }
                     .boxed()
                 })
                 .on(GameStartedNotification::MSG_TYPE, move |payload, c| {
-                    let notifications = client_notifications_clone_7.clone();
+                    let notifier = notifier_clone_7.clone();
                     let state = client_state_clone_3.clone();
                     async move {
                         match payload {
@@ -495,7 +458,7 @@ async fn main() {
                             let mut state_val = state.lock().await;
                             *state_val = GuiClientState::Playing;
                         }
-                        create_info_notification(String::from("Game started"), notifications);
+                        notifier.create_info(String::from("Game started"));
                         c.emit(
                             GetCardsMessage::MSG_TYPE,
                             to_string(&GetCardsMessage {}).unwrap(),
@@ -508,7 +471,7 @@ async fn main() {
                 .on(GetCardsResponse::MSG_TYPE, move |payload, _| {
                     let card_list = client_card_list_clone.clone();
                     let selected_seat = client_selected_seat_clone_2.clone();
-                    let notifications = client_notifications_clone_8.clone();
+                    let notifier = notifier_clone_8.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -528,29 +491,21 @@ async fn main() {
                                 }
                             }
                             GetCardsResponse::NotInRoom => {
-                                create_error_notification(
-                                    String::from("You are not in a room"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not in a room"));
                             }
                             GetCardsResponse::Unauthenticated => {
-                                create_error_notification(
-                                    String::from("You are not authenticated"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not authenticated"));
                             }
                             GetCardsResponse::SpectatorNotAllowed => {
-                                create_error_notification(
-                                    String::from("Spectator is not allowed to play"),
-                                    notifications,
-                                );
+                                notifier
+                                    .create_error(String::from("Spectator is not allowed to play"));
                             }
                         };
                     }
                     .boxed()
                 })
                 .on(AskBidNotification::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_9.clone();
+                    let notifier = notifier_clone_9.clone();
                     let client_game_current_player_arc = client_game_current_player_clone.clone();
                     async move {
                         let msg = match payload {
@@ -569,18 +524,18 @@ async fn main() {
                                 client_game_current_player_arc.lock().await;
                             *client_game_current_player_val = Some(msg.player);
                         }
-                        create_info_notification(bid_message, notifications.clone());
-                        create_info_notification(
-                            String::from(&format!("Player {} is bidding right now.", msg.player)),
-                            notifications,
-                        );
+                        notifier.create_info(bid_message);
+                        notifier.create_info(String::from(&format!(
+                            "Player {} is bidding right now.",
+                            msg.player
+                        )));
                     }
                     .boxed()
                 })
                 .on(MakeBidResponse::MSG_TYPE, move |payload, _| {
                     let client_placed_bid_arc = client_placed_bid_clone.clone();
                     let input_placed_bid_arc = input_placed_bid_clone_1.clone();
-                    let notifications = client_notifications_clone_10.clone();
+                    let notifier = notifier_clone_10.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -596,39 +551,23 @@ async fn main() {
                                 println!("{:?}", *client_placed_bid_val);
                             }
                             MakeBidResponse::AuctionNotInProcess => {
-                                create_error_notification(
-                                    String::from("Auction is not in process"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("Auction is not in process"));
                             }
                             MakeBidResponse::NotInRoom => {
-                                create_error_notification(
-                                    String::from("You are not in a room"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not in a room"));
                             }
                             MakeBidResponse::Unauthenticated => {
-                                create_error_notification(
-                                    String::from("You are not authenticated"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not authenticated"));
                             }
                             MakeBidResponse::SpectatorNotAllowed => {
-                                create_error_notification(
-                                    String::from("You are not allowed to play"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not allowed to play"));
                             }
                             MakeBidResponse::NotYourTurn => {
-                                create_error_notification(
-                                    String::from("It's not your turn"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("It's not your turn"));
                             }
-                            MakeBidResponse::InvalidBid => create_error_notification(
-                                String::from("This bid is not valid"),
-                                notifications,
-                            ),
+                            MakeBidResponse::InvalidBid => {
+                                notifier.create_error(String::from("This bid is not valid"))
+                            }
                         }
                     }
                     .boxed()
@@ -728,7 +667,7 @@ async fn main() {
                     .boxed()
                 })
                 .on(MakeTrickResponse::MSG_TYPE, move |payload, _| {
-                    let notifications = client_notifications_clone_11.clone();
+                    let notifier = notifier_clone_11.clone();
                     let client_card_list_arc = client_card_list_clone_1.clone();
                     let input_placed_trick_arc = input_placed_trick_clone.clone();
                     async move {
@@ -752,40 +691,22 @@ async fn main() {
                                 }
                             }
                             MakeTrickResponse::NotInRoom => {
-                                create_error_notification(
-                                    String::from("You are not in a room"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not in a room"));
                             }
                             MakeTrickResponse::SpectatorNotAllowed => {
-                                create_error_notification(
-                                    String::from("You are not allowed to play"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not allowed to play"));
                             }
                             MakeTrickResponse::NotYourTurn => {
-                                create_error_notification(
-                                    String::from("It's not your turn"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("It's not your turn"));
                             }
                             MakeTrickResponse::TrickNotInProcess => {
-                                create_error_notification(
-                                    String::from("Trick is not in process"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("Trick is not in process"));
                             }
                             MakeTrickResponse::InvalidCard => {
-                                create_error_notification(
-                                    String::from("This card is not valid"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("This card is not valid"));
                             }
                             MakeTrickResponse::Unauthenticated => {
-                                create_error_notification(
-                                    String::from("You are not authenticated"),
-                                    notifications,
-                                );
+                                notifier.create_error(String::from("You are not authenticated"));
                             }
                         }
                     }
@@ -795,7 +716,7 @@ async fn main() {
                     let client_game_current_player_arc = client_game_current_player_clone_3.clone();
                     let client_current_placed_cards_arc =
                         client_current_placed_cards_clone_1.clone();
-                    let notifications = client_notifications_clone_12.clone();
+                    let notifier = notifier_clone_12.clone();
                     let client_dummy_cards_arc = client_dummy_cards_clone_2.clone();
                     async move {
                         let msg = match payload {
@@ -833,23 +754,20 @@ async fn main() {
                                 *client_current_placed_cards_val = placed_cards;
                             }
                         }
-                        create_info_notification(
-                            String::from(format!(
-                                "Trick {} taken by {:?}",
-                                msg.cards
-                                    .iter()
-                                    .map(Card::to_string)
-                                    .collect::<Vec<_>>()
-                                    .join(" "),
-                                msg.taker
-                            )),
-                            notifications,
-                        );
+                        notifier.create_info(String::from(format!(
+                            "Trick {} taken by {:?}",
+                            msg.cards
+                                .iter()
+                                .map(Card::to_string)
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                            msg.taker
+                        )));
                     }
                     .boxed()
                 })
                 .on(GameFinishedNotification::MSG_TYPE, move |payload, c| {
-                    let notifications = client_notifications_clone_13.clone();
+                    let notifier = notifier_clone_13.clone();
                     let client_state = client_state_clone_4.clone();
                     let selected_room_name = client_selected_room_name_clone_1.clone();
                     let client_seats = client_seats_clone_4.clone();
@@ -871,7 +789,7 @@ async fn main() {
                             }
                             _ => return,
                         };
-                        create_info_notification(String::from("Game finished!"), notifications);
+                        notifier.create_info(String::from("Game finished!"));
                         sleep(Duration::from_secs(5)).await;
                         {
                             {
@@ -982,7 +900,7 @@ async fn main() {
             }
         }
 
-        display_notifications(client.notifications.clone()).await;
+        notifier.display().await;
 
         next_frame().await;
     }
