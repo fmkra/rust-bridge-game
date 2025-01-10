@@ -316,63 +316,6 @@ pub fn play_ui(
         }
     }
 
-    // Placeholder for Bid Texture
-    let bid_texture_name = "1NT";
-    let bid_texture_width = grid_cell_size; // Explicitly setting width for consistency
-    let bid_texture_height = grid_cell_size; // Explicitly setting height for consistency
-
-    // TODO: DISPLAY BIDS PLACED BY PLAYERS
-    // Texture_top: Positioned at top: 0px, left: 120px
-    if let Some(bid_texture) = bid_textures.get(bid_texture_name) {
-        draw_texture_ex(
-            bid_texture,
-            square_x + 120.0,
-            square_y + 0.0,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
-                ..Default::default()
-            },
-        );
-
-        // Texture_right: Positioned at top: 120px, left: 240px
-        draw_texture_ex(
-            bid_texture,
-            square_x + 240.0,
-            square_y + 120.0,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
-                ..Default::default()
-            },
-        );
-
-        // Texture_bottom: Positioned at top: 240px, left: 120px
-        draw_texture_ex(
-            bid_texture,
-            square_x + 120.0,
-            square_y + 240.0,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
-                ..Default::default()
-            },
-        );
-
-        // Texture_left: Positioned at top: 120px, left: 0px
-        draw_texture_ex(
-            bid_texture,
-            square_x + 0.0,
-            square_y + 120.0,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
-                ..Default::default()
-            },
-        );
-    }
-
-    // DISPLAY CARDS TRICKED -----------------------------------------------------------------------
     // Calculate the offset for shifting positions (player_position as bottom = 2)
     let shift_offset = match player_position {
         Player::North => 2, // Shift North to bottom
@@ -383,10 +326,10 @@ pub fn play_ui(
 
     // Adjust the positions for the placeholders based on rotation
     let placeholder_positions = [
-        (square_x + 90.0, square_y + 0.0),   // North
-        (square_x + 180.0, square_y + 90.0), // East
-        (square_x + 90.0, square_y + 180.0), // South
-        (square_x + 0.0, square_y + 90.0),   // West
+        (0.0, -1.0), // North
+        (1.0, 0.0),  // East
+        (0.0, 1.0),  // South
+        (-1.0, 0.0), // West
     ];
     let adjusted_positions: Vec<(f32, f32)> = placeholder_positions
         .iter()
@@ -395,6 +338,29 @@ pub fn play_ui(
         .take(4)
         .cloned()
         .collect();
+
+    // Placeholder for Bid Texture
+    let bid_texture_width = grid_cell_size; // Explicitly setting width for consistency
+    let bid_texture_height = grid_cell_size; // Explicitly setting height for consistency
+
+    for (bid, position) in client.player_bids.iter().zip(adjusted_positions.iter()) {
+        let Some(bid) = bid else { continue };
+        let Some(bid_texture) = bid_textures.get(&bid.to_str()) else {
+            continue;
+        };
+        draw_texture_ex(
+            bid_texture,
+            square_x + 120.0 + 120.0 * position.0,
+            square_y + 120.0 + 120.0 * position.1,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(Vec2::new(bid_texture_width, bid_texture_height)),
+                ..Default::default()
+            },
+        );
+    }
+
+    // DISPLAY CARDS TRICKED -----------------------------------------------------------------------
 
     // Card dimensions
     let card_texture_width = grid_cell_size * 2.0;
@@ -409,8 +375,8 @@ pub fn play_ui(
             if let Some(texture) = card_textures.get(&card_name) {
                 draw_texture_ex(
                     texture,
-                    *placeholder_x,
-                    *placeholder_y,
+                    square_x + 90.0 + 90.0 * (*placeholder_x),
+                    square_y + 180.0 + 180.0 * (*placeholder_y),
                     WHITE,
                     DrawTextureParams {
                         dest_size: Some(Vec2::new(card_texture_width, card_texture_height)),

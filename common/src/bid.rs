@@ -13,7 +13,7 @@ impl BidType {
     pub fn to_str(&self) -> &str {
         match self {
             Self::Trump(suit) => suit.to_str(),
-            Self::NoTrump => "No Trump",
+            Self::NoTrump => "NT",
         }
     }
 }
@@ -46,10 +46,10 @@ impl Bid {
 
     pub fn to_str(&self) -> String {
         match self {
-            Self::Pass => "Pass".into(),
-            Self::Play(number, typ) => format!("{} {}", number, typ.to_str()),
-            Self::Double => "Double".into(),
-            Self::Redouble => "Redouble".into(),
+            Self::Pass => "PASS".into(),
+            Self::Play(number, typ) => format!("{}{}", number, typ.to_str()),
+            Self::Double => "DOUBLE".into(),
+            Self::Redouble => "REDOUBLE".into(),
         }
     }
 }
