@@ -5,6 +5,7 @@ mod gui_login;
 mod gui_notification;
 mod gui_play;
 mod gui_room;
+mod utils;
 
 use gui_client::{GuiClient, GuiClientState};
 use gui_create_room::create_room_ui;
@@ -44,6 +45,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::{runtime::Runtime, time::sleep};
+use utils::update_user_seat;
 
 #[macroquad::main("Bridge card game")]
 async fn main() {
@@ -94,6 +96,8 @@ async fn main() {
     let client_seats_clone = client.seats.clone();
     let client_seats_clone_1 = client.seats.clone();
     let client_seats_clone_2 = client.seats.clone();
+    let client_seats_clone_3 = client.seats.clone();
+    let client_seats_clone_4 = client.seats.clone();
     let client_selected_seat_clone = client.selected_seat.clone();
     let client_selected_seat_clone_1 = client.selected_seat.clone();
     let client_selected_seat_clone_2 = client.selected_seat.clone();
@@ -114,7 +118,6 @@ async fn main() {
 
     let client_state_clone_4 = client.state.clone();
     let client_selected_room_name_clone_1 = client.selected_room_name.clone();
-    let client_seats_clone_3 = client.seats.clone();
     let client_selected_seat_clone_3 = client.selected_seat.clone();
     let client_card_list_clone_2 = client.card_list.clone();
     let client_player_bids_clone_1 = client.player_bids.clone();
@@ -380,10 +383,11 @@ async fn main() {
                         };
                         {
                             let mut client_seats_val = client_seats.lock().await;
-                            if let Some(seat) = player_position.position {
-                                client_seats_val[seat.to_usize()] =
-                                    Some(player_position.user.clone());
-                            }
+                            update_user_seat(
+                                &mut client_seats_val,
+                                player_position.user.clone(),
+                                player_position.position,
+                            );
                         }
                         let position_str = match player_position.position {
                             Some(val) => format!("{}", val),
@@ -455,6 +459,7 @@ async fn main() {
                 })
                 .on(LeaveRoomNotification::MSG_TYPE, move |payload, _| {
                     let notifications = client_notifications_clone_6.clone();
+                    let client_seats = client_seats_clone_3.clone();
                     async move {
                         let msg = match payload {
                             Payload::Text(text) => {
@@ -463,6 +468,8 @@ async fn main() {
                             }
                             _ => return,
                         };
+                        let mut client_seats_val = client_seats.lock().await;
+                        update_user_seat(&mut client_seats_val, msg.user.clone(), None);
                         create_info_notification(
                             String::from(&format!(
                                 "Player {} left the room.",
@@ -845,7 +852,7 @@ async fn main() {
                     let notifications = client_notifications_clone_13.clone();
                     let client_state = client_state_clone_4.clone();
                     let selected_room_name = client_selected_room_name_clone_1.clone();
-                    let client_seats = client_seats_clone_3.clone();
+                    let client_seats = client_seats_clone_4.clone();
                     let client_selected_seat = client_selected_seat_clone_3.clone();
                     let client_card_list = client_card_list_clone_2.clone();
                     let client_player_bids = client_player_bids_clone_1.clone();
