@@ -72,8 +72,43 @@ async fn main() {
     let client = Arc::new(Mutex::new(Client::new()));
     let notifier = Notifier::new();
 
+    let args = clap::Command::new("bridge-client")
+        .arg(
+            clap::Arg::new("port")
+                .short('p')
+                .long("port")
+                .value_name("PORT")
+                .help("Port to connect to")
+                .default_value("3000"),
+        )
+        .arg(
+            clap::Arg::new("server_ip")
+                .short('s')
+                .long("server_ip")
+                .value_name("SERVER_IP")
+                .help("Server IP to connect to")
+                .default_value("localhost"),
+        )
+        .arg(
+            clap::Arg::new("protocol")
+                .short('g')
+                .long("protocol")
+                .value_name("PROTOCOL")
+                .help("Protocol to use (http or https)")
+                .default_value("http"),
+        )
+        .get_matches();
+
     let socket = runtime.block_on(async {
-        let mut builder = ClientBuilder::new("http://localhost:3000/").namespace("/");
+        let port = args.get_one::<String>("port").unwrap();
+        let host = args.get_one::<String>("server_ip").unwrap();
+        let protocol = args.get_one::<String>("protocol").unwrap();
+
+        let server_url = format!("{}://{}:{}/", protocol, host, port);
+
+        println!("Connecting to {}", server_url);
+
+        let mut builder = ClientBuilder::new(&server_url).namespace("/");
 
         add_handler!(
             builder,

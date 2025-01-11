@@ -57,8 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::subscriber::set_global_default(subscriber)?;
 
-    info!("Starting server");
-
     let (layer, io) = SocketIo::builder()
         .with_state(ServerState::new(
             RwLock::new(state::ServerStateInner::new()),
@@ -488,8 +486,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .layer(CorsLayer::permissive())
                 .layer(layer),
         );
+    let args = clap::Command::new("bridge-server")
+        .arg(
+            clap::Arg::new("port")
+                .short('p')
+                .long("port")
+                .value_name("PORT")
+                .help("Port to listen on")
+                .default_value("3000"),
+        )
+        .get_matches();
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let port = args.get_one::<String>("port").unwrap();
+    let addr = format!("0.0.0.0:{}", port);
+
+    info!("Starting server on {}", addr);
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
