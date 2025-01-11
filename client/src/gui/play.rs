@@ -141,6 +141,22 @@ pub fn play_ui(
             draw_text(text, text_x, text_y, text_size, color);
         };
 
+    let center_text_rotated =
+        |text: &str, text_x: f32, text_y: f32, color: Color, angle: f32, mult: f32| {
+            let text_width = measure_text(text, None, text_size as u16, 1.0).width;
+            draw_text_ex(
+                text,
+                text_x,
+                text_y + mult * text_width / 2.0 + rect_width / 2.0,
+                TextParams {
+                    color,
+                    font_size: text_size as u16,
+                    rotation: angle.to_radians(),
+                    ..Default::default()
+                },
+            );
+        };
+
     // Determine text color based on the current player
     let get_text_color = |player: Player| {
         if Some(player) == client.game_current_player {
@@ -258,13 +274,13 @@ pub fn play_ui(
         rect_width,
         DARKGRAY,
     );
-    center_text(
+    center_text_rotated(
         &format!("{}: {}", right_player.to_str(), right_username),
-        square_x + square_size,
+        square_x + square_size + rect_height / 2.0 - 10.0,
         square_y + (square_size - rect_width) / 2.0,
-        rect_height,
-        rect_width,
         get_text_color(right_player),
+        90.0,
+        -1.0,
     );
 
     // Top
@@ -292,13 +308,13 @@ pub fn play_ui(
         rect_width,
         DARKGRAY,
     );
-    center_text(
+    center_text_rotated(
         &format!("{}: {}", left_player.to_str(), left_username),
-        square_x - rect_height,
+        square_x - (rect_height - text_size) / 2.0,
         square_y + (square_size - rect_width) / 2.0,
-        rect_height,
-        rect_width,
         get_text_color(left_player),
+        -90.0,
+        1.0,
     );
 
     let grid_x = screen_width() - 350.0; // Start of grid on the top-right corner
