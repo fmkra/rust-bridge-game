@@ -6,7 +6,10 @@ use common::message::client_message::{
     MakeTrickMessage,
 };
 use common::message::server_notification::{
-    AskBidNotification, AskTrickNotification, AuctionFinishedNotification, AuctionFinishedNotificationInner, DealFinishedNotification, DummyCardsNotification, GameFinishedNotification, MakeBidNotification, MakeTrickNotification, TrickFinishedNotification
+    AskBidNotification, AskTrickNotification, AuctionFinishedNotification,
+    AuctionFinishedNotificationInner, DealFinishedNotification, DummyCardsNotification,
+    GameFinishedNotification, MakeBidNotification, MakeTrickNotification,
+    TrickFinishedNotification,
 };
 use common::message::server_response::{GetCardsResponse, MakeBidResponse, MakeTrickResponse};
 use common::message::{
@@ -402,7 +405,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let trick_result = room_lock.game.trick(&player, &data.card);
             send(&s, &MakeTrickResponse::from(&trick_result));
 
-            
             let mut notifications = Vec::new();
 
             if let TrickStatus::Error(_) = trick_result {
@@ -417,7 +419,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match trick_result {
                 TrickStatus::TrickInProgress => {
                     if room_lock.game.trick_no == 0 && room_lock.game.current_trick.len() == 1 {
-                        let msg = DummyCardsNotification::new(room_lock.game.get_dummy_cards().unwrap().clone(), 
+                        let msg = DummyCardsNotification::new(room_lock.game.get_dummy_cards().unwrap().clone(),
                         room_lock.game.get_dummy_player().unwrap());
                         notifications.push(notify(&s, &room_id, msg));
                     }
@@ -440,11 +442,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         notifications.push(notify(&s, &room_id, GameFinishedNotification{result: None}));
 
                         state.write().await.remove_room(&room_id);
-                        
+
                         return;
                     } else {
                         room_lock.game.start();
-    
+
                         notifications.push(notify(&s, &room_id, AskBidNotification {
                             player: deal_finished.next_deal_bidder,
                             max_bid: Bid::Pass,
