@@ -1,5 +1,6 @@
 use std::{
     io::Write,
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -802,7 +803,7 @@ async fn main() {
                     continue;
                 };
 
-                let Some(rank) = Rank::from_str(rank) else {
+                let Ok(rank) = Rank::from_str(rank) else {
                     println!("Invalid rank");
                     continue;
                 };
@@ -822,7 +823,7 @@ async fn main() {
 
                 selected_card.lock().await.replace(card);
 
-                println!("Playing card {}", card.to_string());
+                println!("Playing card {}", card);
                 socket
                     .emit(
                         MakeTrickMessage::MSG_TYPE,
