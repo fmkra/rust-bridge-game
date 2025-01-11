@@ -1,15 +1,11 @@
-To run client:
-
-```
-cargo run --bin client
-```
-
 To run server:
 
 ```
-cargo run --bin server
+cargo run --bin server -- -p 3000
 ```
 
-### Notes:
+To run client:
 
-`Arc<str>` is used throughout the code to reduce memory usage when immutable strings are cloned many time.
+```
+cargo run --bin client -- -g http -s localhost -p 3000
+```
