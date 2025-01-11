@@ -4,6 +4,7 @@ mod notifications;
 mod utils;
 
 use client::{Client, ClientState};
+use common::message::client_message::LeaveRoomMessage;
 use common::message::server_notification::DealFinishedNotification;
 use gui::create_room::create_room_ui;
 use gui::lobby::list_rooms;
@@ -470,6 +471,12 @@ async fn main() {
                     client_lock.dummy_player = None;
                     client_lock.current_placed_cards = [None, None, None, None];
                 }
+                s.emit(
+                    LeaveRoomMessage::MSG_TYPE,
+                    to_string(&LeaveRoomMessage {}).unwrap(),
+                )
+                .await
+                .unwrap();
                 s.emit(
                     ListRoomsMessage::MSG_TYPE,
                     to_string(&ListRoomsMessage {}).unwrap(),

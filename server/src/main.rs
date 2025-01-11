@@ -382,7 +382,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
 
-        s.on(MakeTrickMessage::MSG_TYPE, |s: SocketRef, Data::<MakeTrickMessage>(data)| async move {
+        s.on(MakeTrickMessage::MSG_TYPE, |s: SocketRef, Data::<MakeTrickMessage>(data), state: State<ServerState>| async move {
             let Some(client_data) = get_client_or_response(&s, &MakeTrickResponse::Unauthenticated) else {return};
 
             let Some(room) = client_data.room else {
@@ -436,12 +436,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     notifications.push(notify(&s, &room_id, DealFinishedNotification::from(deal_finished.clone())));
 
-                    room_lock.game.start();
+                    if deal_finished.is_game_finished {
+                        notifications.push(notify(&s, &room_id, GameFinishedNotification{result: None}));
 
-                    notifications.push(notify(&s, &room_id, AskBidNotification {
-                        player: deal_finished.next_deal_bidder,
-                        max_bid: Bid::Pass,
-                    }));
+                        state.write().await.remove_room(&room_id);
+                        
+                        return;
+                    } else {
+                        room_lock.game.start();
+    
+                        notifications.push(notify(&s, &room_id, AskBidNotification {
+                            player: deal_finished.next_deal_bidder,
+                            max_bid: Bid::Pass,
+                        }));
+                    }
                 }
                 TrickStatus::Error(_) => ()
             }

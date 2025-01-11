@@ -167,4 +167,8 @@ impl ServerStateInner {
     pub async fn get_room(&self, room_id: &RoomId) -> Option<Arc<RwLock<RoomState>>> {
         self.rooms.get(room_id).cloned()
     }
+
+    pub fn remove_room(&mut self, room_id: &RoomId) {
+        self.rooms.remove(room_id);
+    }
 }
