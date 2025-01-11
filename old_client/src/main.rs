@@ -319,12 +319,9 @@ async fn main() {
                     }
                     _ => return,
                 };
-                match msg {
-                    MakeBidResponse::InvalidBid => {
-                        println!("Invalid bid");
-                        ask_bid_tx.send(None).await.unwrap();
-                    }
-                    _ => {}
+                if let MakeBidResponse::InvalidBid = msg {
+                    println!("Invalid bid");
+                    ask_bid_tx.send(None).await.unwrap();
                 }
             }
             .boxed()
@@ -400,7 +397,7 @@ async fn main() {
                         ask_trick_tx.send(None).await.unwrap();
                     }
                     MakeTrickResponse::Ok => {
-                        let card = selected_card_clone.lock().await.clone().unwrap();
+                        let card = (*selected_card_clone.lock().await).unwrap();
                         card_list
                             .lock()
                             .await
@@ -561,7 +558,7 @@ async fn main() {
                 std::io::stdin().read_line(&mut position_string).unwrap();
                 let position = position_string.trim().parse::<i32>().unwrap();
 
-                if position >= 0 && position < 4 {
+                if (0..4).contains(&position) {
                     socket
                         .emit(
                             SelectPlaceMessage::MSG_TYPE,

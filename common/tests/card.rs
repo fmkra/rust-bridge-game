@@ -8,10 +8,10 @@ fn suit_is_major() {
     let suit3 = Suit::Hearts;
     let suit4 = Suit::Spades;
 
-    assert_eq!(suit1.is_major(), false);
-    assert_eq!(suit2.is_major(), false);
-    assert_eq!(suit3.is_major(), true);
-    assert_eq!(suit4.is_major(), true);
+    assert!(!suit1.is_major());
+    assert!(!suit2.is_major());
+    assert!(suit3.is_major());
+    assert!(suit4.is_major());
 }
 
 #[test]
@@ -20,15 +20,15 @@ fn card_partial_ord() {
     let card2 = Card::new(Rank::Three, Suit::Spades);
     let card3 = Card::new(Rank::Four, Suit::Hearts);
 
-    assert_eq!(card1 < card2, true);
-    assert_eq!(card2 < card1, false);
-    assert_eq!(card1 > card2, false);
-    assert_eq!(card2 > card1, true);
+    assert!(card1 < card2);
+    assert!(card2 >= card1);
+    assert!(card1 <= card2);
+    assert!(card2 > card1);
 
-    assert_eq!(card1 < card3, false);
-    assert_eq!(card1 > card3, false);
-    assert_eq!(card3 < card1, false);
-    assert_eq!(card3 > card1, false);
+    assert!(card1 >= card3);
+    assert!(card1 <= card3);
+    assert!(card3 >= card1);
+    assert!(card3 <= card1);
 }
 
 #[test]

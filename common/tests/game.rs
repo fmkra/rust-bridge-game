@@ -53,7 +53,7 @@ fn game_start() {
             return a.rank.cmp(&b.rank);
         }
 
-        return a.suit.cmp(&b.suit);
+        a.suit.cmp(&b.suit)
     });
 
     let mut cards_iter = cards.iter();
@@ -459,7 +459,7 @@ fn game_evaluate() {
     }
 
     let res = GameResult {
-        bidded: game2.max_bid.clone(),
+        bidded: game2.max_bid,
         won_tricks: 8,
         contract_succeeded: true,
     };

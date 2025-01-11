@@ -369,7 +369,7 @@ async fn main() {
                     MakeTrickResponse::Ok => {
                         let mut client_lock = client.lock().await;
 
-                        let placed_trick = client_lock.placed_trick.clone();
+                        let placed_trick = client_lock.placed_trick;
                         if let Some(cards) = client_lock.card_list.as_mut() {
                             if let Some(placed_card) = placed_trick {
                                 cards.retain(|c| *c != placed_card);
@@ -413,7 +413,7 @@ async fn main() {
                 client.lock().await.current_placed_cards = [None, None, None, None];
 
                 // TODO: show taken by
-                notifier.create_info(String::from(format!(
+                notifier.create_info(format!(
                     "Trick {} taken by {:?}",
                     msg.cards
                         .iter()
@@ -421,7 +421,7 @@ async fn main() {
                         .collect::<Vec<_>>()
                         .join(" "),
                     msg.taker
-                )));
+                ));
             }
         );
 

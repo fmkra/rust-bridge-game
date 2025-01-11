@@ -263,7 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     position: data.position,
                 });
 
-                let game_state = room.read().await.game.state.clone();
+                let game_state = room.read().await.game.state;
 
                 if game_state != GameState::WaitingForPlayers {
                     // Player joined to a game that is already running    
@@ -349,7 +349,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let mut notifications = Vec::new();
                     notifications.push(notify(&s, &room_lock.info.id, MakeBidNotification {
-                        player: player,
+                        player,
                         bid: data.bid,
                     }));
                     if next_state == BidStatus::Auction {

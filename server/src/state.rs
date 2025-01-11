@@ -5,7 +5,6 @@ use std::{
     time::Duration,
 };
 
-use futures;
 use futures::stream::StreamExt;
 use socketioxide::extract::SocketRef;
 use tokio::{sync::RwLock, time::sleep};

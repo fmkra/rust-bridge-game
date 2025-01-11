@@ -242,7 +242,7 @@ pub fn play_ui(
             let username = client.seats[i]
                 .as_ref()
                 .map(|user| user.get_username())
-                .unwrap_or(&"Empty");
+                .unwrap_or("Empty");
             let header = format!("{} ({})", username, player.to_str());
             draw_cell(&header, i, 0);
             draw_cell(&client.points[i].to_string(), i, 1);
@@ -530,7 +530,7 @@ pub fn play_ui(
     }
 
     // Additional row for DOUBLE, PASS, REDOUBLE
-    let extra_row_y = grid_y + 7 as f32 * (grid_cell_size + grid_spacing);
+    let extra_row_y = grid_y + 7_f32 * (grid_cell_size + grid_spacing);
     let extra_bids = [Bid::Double, Bid::Pass, Bid::Redouble];
     let extra_textures = ["DOUBLE", "PASS", "REDOUBLE"];
 
@@ -600,7 +600,7 @@ pub fn play_ui(
         // Handle clicks in reverse order to respect the overlapping priority
         for (i, card) in cards.iter().enumerate().rev() {
             let card_name = format!("{}{}", card.rank.to_str(), card.suit.to_str());
-            if let Some(_) = card_textures.get(&card_name) {
+            if card_textures.get(&card_name).is_some() {
                 let card_x = x_offset + i as f32 * card_spacing;
 
                 if clicked_card.is_none()
@@ -610,7 +610,7 @@ pub fn play_ui(
                     && mouse_position().1 >= pile_y
                     && mouse_position().1 <= pile_y + card_width
                 {
-                    clicked_card = Some(card.clone());
+                    clicked_card = Some(*card);
                     break; // Stop checking once the topmost card is clicked
                 }
             }
@@ -619,7 +619,7 @@ pub fn play_ui(
         // Handle the clicked card
         if let Some(card) = clicked_card {
             let socket_clone = socket.clone();
-            client.placed_trick = Some(card.clone());
+            client.placed_trick = Some(card);
             runtime.spawn(async move {
                 socket_clone
                     .emit(
